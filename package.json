@@ -1,0 +1,291 @@
+{
+  "name": "walkthrough",
+  "displayName": "代码走读",
+  "description": "带着人一步步审代码改动：选分支生成走读（AI），按调用链条逐步看只读快照与 diff，并能就地提问",
+  "version": "0.1.7",
+  "publisher": "hedykan",
+  "private": true,
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hedykan/walkthrough.git"
+  },
+  "homepage": "https://github.com/hedykan/walkthrough#readme",
+  "bugs": {
+    "url": "https://github.com/hedykan/walkthrough/issues"
+  },
+  "keywords": [
+    "code-review",
+    "walkthrough",
+    "git",
+    "ai"
+  ],
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "walkthrough.open",
+        "title": "打开走读",
+        "category": "走读",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "walkthrough.openFile",
+        "title": "作为走读打开",
+        "category": "走读"
+      },
+      {
+        "command": "walkthrough.next",
+        "title": "下一步",
+        "category": "走读",
+        "icon": "$(arrow-right)"
+      },
+      {
+        "command": "walkthrough.prev",
+        "title": "上一步",
+        "category": "走读",
+        "icon": "$(arrow-left)"
+      },
+      {
+        "command": "walkthrough.showPanel",
+        "title": "显示讲解面板",
+        "category": "走读"
+      },
+      {
+        "command": "walkthrough.quickAsk.reply",
+        "title": "问",
+        "category": "走读"
+      },
+      {
+        "command": "walkthrough.quickAsk.delete",
+        "title": "关掉这个问答",
+        "category": "走读",
+        "icon": "$(close)"
+      },
+      {
+        "command": "walkthrough.openRef",
+        "title": "打开代码引用",
+        "category": "走读"
+      },
+      {
+        "command": "walkthrough.refocus",
+        "title": "回到当前步",
+        "category": "走读",
+        "icon": "$(target)"
+      },
+      {
+        "command": "walkthrough.back",
+        "title": "回到上一处",
+        "category": "走读",
+        "icon": "$(arrow-left)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "walkthrough",
+          "title": "代码走读",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "walkthrough": [
+        {
+          "type": "webview",
+          "id": "walkthrough.side",
+          "name": "走读"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "walkthrough.refocus",
+          "when": "view == walkthrough.side && walkthrough.active",
+          "group": "navigation@0"
+        },
+        {
+          "command": "walkthrough.prev",
+          "when": "view == walkthrough.side && walkthrough.active",
+          "group": "navigation@1"
+        },
+        {
+          "command": "walkthrough.next",
+          "when": "view == walkthrough.side && walkthrough.active",
+          "group": "navigation@2"
+        },
+        {
+          "command": "walkthrough.open",
+          "when": "view == walkthrough.side",
+          "group": "navigation@3"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "walkthrough.openFile",
+          "when": "resourceExtname == .json",
+          "group": "navigation@99"
+        }
+      ],
+      "comments/commentThread/context": [
+        {
+          "command": "walkthrough.quickAsk.reply",
+          "group": "inline",
+          "when": "commentController == walkthrough-quick"
+        }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "walkthrough.quickAsk.delete",
+          "group": "navigation",
+          "when": "commentController == walkthrough-quick"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "walkthrough.quickAsk.reply",
+          "when": "false"
+        },
+        {
+          "command": "walkthrough.quickAsk.delete",
+          "when": "false"
+        },
+        {
+          "command": "walkthrough.openRef",
+          "when": "false"
+        },
+        {
+          "command": "walkthrough.back",
+          "when": "walkthrough.canBack"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "walkthrough.back",
+          "when": "walkthrough.canBack && resourceScheme == walkthrough-snap",
+          "group": "navigation@0"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "walkthrough.next",
+        "key": "alt+]",
+        "when": "walkthrough.active"
+      },
+      {
+        "command": "walkthrough.prev",
+        "key": "alt+[",
+        "when": "walkthrough.active"
+      },
+      {
+        "command": "walkthrough.refocus",
+        "key": "alt+\\",
+        "when": "walkthrough.active"
+      },
+      {
+        "command": "walkthrough.back",
+        "key": "alt+left",
+        "when": "walkthrough.canBack && (resourceScheme == walkthrough-snap || activeWebviewPanelId == 'walkthrough.panel')"
+      }
+    ],
+    "configuration": {
+      "title": "代码走读",
+      "properties": {
+        "walkthrough.dataDir": {
+          "type": "string",
+          "default": "~/walkthroughs",
+          "description": "走读 JSON 的存放目录（打开对话框默认从这里开始）",
+          "markdownDescription": "走读文件放在哪。结构是 `<仓库名>/code/<base>..<head>.json`。团队共享时，把共享的走读仓库 clone 到这里。"
+        },
+        "walkthrough.repoRoots": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "仓库名 → 本地仓库路径，例如 { \"loloyal-services-be\": \"~/Develope/loloyal/loloyal-services-be\" }。不配时先在工作区里按目录名找，找不到再让你选"
+        },
+        "walkthrough.ask.command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "claude",
+            "-p",
+            "--output-format",
+            "stream-json",
+            "--verbose",
+            "--allowedTools",
+            "Read",
+            "Grep",
+            "Glob",
+            "Bash(git show:*)",
+            "Bash(git log:*)",
+            "Bash(git diff:*)",
+            "--disallowedTools",
+            "Edit",
+            "Write",
+            "NotebookEdit",
+            "--settings",
+            "{\"outputStyle\":\"default\"}",
+            "--append-system-prompt",
+            "{system}"
+          ],
+          "markdownDescription": "提问时运行的命令（参数数组，不经过 shell）。在本地仓库目录下运行，问题和上下文从 stdin 传入；`{system}` 会替换成系统提示。默认用 `--settings` 把输出风格固定为 default，回答不带个人的输出风格（answers.json 会发给别人看）。换 codex 可设为 `[\"codex\", \"exec\", \"-s\", \"read-only\", \"-\"]` 并把 `walkthrough.ask.format` 设为 `text`。"
+        },
+        "walkthrough.ask.format": {
+          "type": "string",
+          "enum": [
+            "claude-stream-json",
+            "text"
+          ],
+          "default": "claude-stream-json",
+          "markdownDescription": "命令输出格式：`claude-stream-json` 解析 claude 的流式 JSON（能显示正在查看哪个文件）；`text` 把标准输出原样当作回答。"
+        },
+        "walkthrough.generate.spec": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "生成走读用的规范文件（作为系统提示传给 AI）。留空用插件自带的那份；想按团队习惯改写法时再指定自己的文件。"
+        },
+        "walkthrough.baseBranch": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "string"
+          },
+          "markdownDescription": "每个仓库固定用哪个分支当对比基准，如 `{\"loloyal-services-be\": \"main\"}`。不填时按 main → master 找。"
+        },
+        "walkthrough.ask.model": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "问问题（面板「问问题」和编辑器快速问答）用哪个模型，写法「厂商-模型」：`claude-fable`、`claude-opus`、`claude-sonnet`、`claude-haiku`、`codex-gpt-5.6-sol`。留空 = 跟随 claude 自己的设置。左侧走读视图的「问答」下拉改的就是它。不影响生成走读。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node esbuild.mjs --test && node --test dist-test/*.test.js",
+    "package": "pnpm build && vsce package --no-dependencies --allow-missing-repository -o release/"
+  },
+  "devDependencies": {
+    "@types/jsdom": "21.1.7",
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.100.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.25.0",
+    "jsdom": "25.0.1",
+    "typescript": "^5.6.0"
+  }
+}
