@@ -6,6 +6,10 @@
 
 走读可以选一个分支让 AI 生成，也可以打开别人生成好的走读文件。
 
+[![代码走读：在编辑器里沿主线审改动](docs/walkthrough-editor/walkthrough-editor.png)](https://hedykan.github.io/walkthrough/)
+
+点击图片打开交互演示。用 `←` / `→` 或画面里的浮起按钮，沿着「为什么改 → 核心思路 → 具体场景 → 调用链 → 就地提问」走一遍。
+
 ## 为什么做这个
 
 现在写代码越来越快了。
