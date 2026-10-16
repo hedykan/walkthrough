@@ -1,6 +1,6 @@
 # Walkthrough editor figure
 
-An interactive isometric explanation of the code-walkthrough extension. It is intentionally one editor—not a desk or workstation—with the controls lifted into physical buttons as the walkthrough advances.
+An interactive isometric explanation of the code-walkthrough extension. It is intentionally one upright editor—not a desk, workstation, or framed diagram. The editor faces the reader, follows the pointer with a restrained 3D tilt, and lifts the relevant physical controls as the walkthrough advances. A synchronized explanation below the model tells the story of every phase.
 
 ## Rebuild
 

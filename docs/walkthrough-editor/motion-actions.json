@@ -1,7 +1,7 @@
 [
   ["slow", 0.18],
   ["key", "ArrowRight"],
-  ["sheet", "docs/walkthrough-editor/shots/motion-sheet.png", 110, 12, ".iso-plate", 1, null, 4],
+  ["sheet", "docs/walkthrough-editor/shots/motion-sheet.png", 110, 12, ".wt-page-shell", 1, null, 4],
   ["slow", 1],
   ["key", "ArrowRight"],
   ["key", "ArrowRight"],
@@ -9,5 +9,5 @@
   ["key", "ArrowRight"],
   ["key", "ArrowRight"],
   ["key", "ArrowRight"],
-  ["shot", "docs/walkthrough-editor/walkthrough-editor.png", ".iso-plate", 2]
+  ["shot", "docs/walkthrough-editor/walkthrough-editor.png", ".wt-page-shell", 2]
 ]
