@@ -1,14 +1,11 @@
-# Walkthrough editor figure
+# Walkthrough editor demo
 
-An interactive isometric explanation of the code-walkthrough extension. It is intentionally one upright editor—not a desk, workstation, or framed diagram. The editor faces the reader, follows the pointer with a restrained 3D tilt, and lifts the relevant physical controls as the walkthrough advances. A synchronized explanation below the model tells the story of every phase.
+一个平面、清晰的 VS Code 风格产品演示，用十个实际操作说明代码走读插件如何把分散的改动组织成一条阅读主线。
 
-## Rebuild
+- 单编辑器 inline diff，不使用左右分栏 diff
+- 气泡紧邻当前操作对象，并解释操作结果
+- 顶部“上一步 / 下一步”控制产品演示
+- 支持跟随系统、明亮模式和暗色模式
+- 支持键盘方向键切换步骤
 
-```bash
-node docs/walkthrough-editor/build.mjs
-node docs/walkthrough-editor/build.mjs --dark
-```
-
-Open `walkthrough-editor.html`, then use `←` / `→`, `Space`, `Enter`, `Home`, `End`, or the controls in the drawing. Motion stops while the page is off-screen and follows `prefers-reduced-motion`.
-
-The renderer and verification helpers in `kit/` and `scripts/` come from [Anatomy](https://github.com/wheresryan22/anatomy) under the MIT License. See [ANATOMY_LICENSE](./ANATOMY_LICENSE).
+直接打开 `walkthrough-editor.html` 即可预览。`walkthrough-editor-dark.html` 保留为暗色模式兼容入口。
