@@ -66,7 +66,7 @@ AI 让代码产出越来越快，人依然需要对最终结果负责。既然�
 **命令行**
 
 ```bash
-cursor --install-extension ~/Downloads/walkthrough-0.1.7.vsix
+cursor --install-extension ~/Downloads/walkthrough-0.1.8.vsix
 ```
 
 **界面**：`Cmd+Shift+P`（Windows / Linux 是 `Ctrl+Shift+P`）→ 输入 `Extensions: Install from VSIX...` → 选中 vsix 文件。
@@ -76,7 +76,7 @@ cursor --install-extension ~/Downloads/walkthrough-0.1.7.vsix
 **命令行**
 
 ```bash
-code --install-extension ~/Downloads/walkthrough-0.1.7.vsix
+code --install-extension ~/Downloads/walkthrough-0.1.8.vsix
 ```
 
 **界面**：左侧「扩展」视图 → 右上角 `…` → `从 VSIX 安装...`（Install from VSIX...）→ 选中 vsix 文件。
@@ -137,7 +137,8 @@ code --install-extension ~/Downloads/walkthrough-0.1.7.vsix
 | `walkthrough.dataDir` | `~/walkthroughs` | 走读目录，左侧「目录」那一行改的就是它 |
 | `walkthrough.repoRoots` | 空 | 仓库名 → 本地路径。不填时插件先按工作区里的目录名去找，找不到会让你选一次，之后记住 |
 | `walkthrough.baseBranch` | 空 | 每个仓库固定用哪个分支当对比基准。不填时依次找 `origin/main` → `origin/master` → `origin/dev` |
-| `walkthrough.ask.model` | 空 | 问问题用哪个模型，左侧的「问答」下拉改的就是它 |
+| `walkthrough.ask.model` | 空 | 生成走读和所有问答统一使用的模型，左侧「模型」下拉改的就是它 |
+| `walkthrough.ask.models` | 空 | 自定义本地 Agent；通常直接点左侧「模型」旁的 `＋` 添加，不用手写 |
 
 也可以直接写进 `settings.json`：
 
@@ -161,7 +162,7 @@ code --install-extension ~/Downloads/walkthrough-0.1.7.vsix
 仓库  [loloyal-services-be ▾]
 分支  [hotfix/metafield-partial…]  ⟳
 对比  [origin/main            ]  分叉 dc134417
-问答  [claude-sonnet ▾]
+模型  [codex-gpt-6.1-sol ▾]  ＋
 提交（origin/main 分叉后 1 个）
  ● 98475290 fix(metafield): 已删除顾客不再…   📖
  ○ dc134417 ── origin/main 分叉点 ──
@@ -169,6 +170,7 @@ code --install-extension ~/Downloads/walkthrough-0.1.7.vsix
 ```
 
 - **分支**、**对比**：点进去会列出全部分支，输入关键字筛选；`↑ ↓` 选择，回车确定。点 `⟳` 拉取远端新建的分支（`git fetch --prune origin`，不动工作区）。
+- **模型**：这个选择同时用于生成走读、面板问答和编辑器快速问答。内置 Claude 与多个 Codex 模型；点 `＋` 可以添加其他 Codex 模型 ID，或添加 Pi Agent 等本地命令。
 - **提交列表**：默认范围是从分叉点到分支最新提交。**点一下**设为终点，**Shift + 点**设为起点，**双击**只看这一个提交。
 - 分支已经合进主干时，没有独有的提交，列表会显示它最近的 100 个提交，由你自己点选范围。
 - 已经生成过走读的范围会显示 📖，可以直接打开。
@@ -257,7 +259,7 @@ code --install-extension ~/Downloads/walkthrough-0.1.7.vsix
 先在终端确认 `claude -p "hi"` 能正常回答。用 codex 的话，确认 `codex exec "hi"` 能跑通。
 
 **回答太慢**
-在左侧「问答」里换一个更快的模型，比如 `claude-haiku`。
+在左侧「模型」里换一个更快的模型，比如 `claude-haiku` 或更轻量的 Codex 模型。
 
 ---
 

@@ -98,11 +98,15 @@ test('分支已合入：提示已合入、不预选范围；点终点 + Shift �
   assert.ok(t.d.getElementById('gen'));
 });
 
-test('问答模型下拉：显示当前选择，切换后发 model', async () => {
+test('统一模型下拉：显示当前选择、标明生成与问答共用、可以管理模型', async () => {
   const t = boot(); await t.flush();
   const sel = t.d.getElementById('model');
   assert.equal(sel.value, 'claude-sonnet');
   assert.deepEqual([...sel.options].map((o: any) => o.textContent), ['默认', 'claude-opus', 'claude-sonnet', 'codex-gpt-5.6-sol']);
+  assert.equal(sel.closest('.row').querySelector('label').textContent, '模型');
+  assert.match(sel.title, /生成走读和所有问答/);
+  t.d.getElementById('manageModels').click();
+  assert.deepEqual(t.sent.filter(m => m.type === 'manageModels'), [{ type: 'manageModels' }]);
   sel.value = 'codex-gpt-5.6-sol'; sel.dispatchEvent(new t.w.Event('change', { bubbles: true }));
   assert.deepEqual(t.sent.filter(m => m.type === 'model'), [{ type: 'model', value: 'codex-gpt-5.6-sol' }]);
 });

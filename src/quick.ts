@@ -1,7 +1,7 @@
 // 编辑器里的快速问答：在走读快照上选几行，点行号旁的「+」就地提问，回答出现在代码下面。
 // 用 VS Code 自带的评论框；不写 answers.json，关掉就没了。同一个框里的前几轮会当上下文带上。
 import * as vscode from 'vscode';
-import { AskFormat, QuickTurn, askCommandFor, buildQuickPrompt, commandLinks, linkifyRefs, runAsk, systemPrompt } from './ask';
+import { AskFormat, CustomModels, QuickTurn, buildQuickPrompt, commandLinks, linkifyRefs, modelCommandFor, runAsk, systemPrompt } from './ask';
 import { Item, Walkthrough } from './model';
 import { SCHEME, parseSnapUri } from './snapshot';
 
@@ -62,7 +62,7 @@ export class QuickAsk implements vscode.Disposable {
     const prompt = buildQuickPrompt(c.w, c.item, { path: relPath, sha, side, start, end, selStart, selEnd, lines }, history, q);
 
     const conf = vscode.workspace.getConfiguration('walkthrough.ask');
-    const { command, format, by } = askCommandFor(conf.get<string[]>('command') ?? [], conf.get<AskFormat>('format') ?? 'claude-stream-json', conf.get<string>('model') ?? '');
+    const { command, format, by } = modelCommandFor(conf.get<string[]>('command') ?? [], conf.get<AskFormat>('format') ?? 'claude-stream-json', conf.get<string>('model') ?? '', conf.get<CustomModels>('models') ?? {});
     const answer = new Turn('思考中…', AI(by));
     t.comments = [...t.comments, new Turn(q, ME), answer];
 

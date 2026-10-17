@@ -17,4 +17,4 @@ if (test) {
 
 // 生成规范随插件一起发：同事没有本地那份时用它
 mkdirSync('dist', { recursive: true });
-copyFileSync('../walkthrough/GENERATE.md', 'dist/GENERATE.md');
+copyFileSync('GENERATE.md', 'dist/GENERATE.md');

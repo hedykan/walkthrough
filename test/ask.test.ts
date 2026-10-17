@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { loadWalkthrough } from '../src/model';
-import { Answer, askCommandFor, askModelOptions, answersPath, buildPrompt, buildQuickPrompt, commandLinks, historyFor, linkifyRefs, loadAnswers, parseClaudeLine, resolveRefPath, runAsk, saveAnswer, systemPrompt, targetKey } from '../src/ask';
+import { Answer, askCommandFor, askModelOptions, answersPath, buildPrompt, buildQuickPrompt, commandLinks, historyFor, linkifyRefs, loadAnswers, modelCommandFor, parseClaudeLine, resolveRefPath, runAsk, saveAnswer, systemPrompt, targetKey } from '../src/ask';
 import { listFiles } from '../src/git';
 import { renderMd } from '../src/markdown';
 import { flatten } from '../src/model';
@@ -224,15 +224,23 @@ test('问答模型：「厂商-模型」写法；claude 加 --model 且替换已
   assert.deepEqual(askCommandFor(C, 'claude-stream-json', ''), { command: C, format: 'claude-stream-json', by: 'claude' });
   assert.deepEqual(askCommandFor(C, 'claude-stream-json', 'claude-opus'), { command: ['/usr/bin/claude', '--model', 'opus', ...C.slice(1)], format: 'claude-stream-json', by: 'claude-opus' });
   assert.deepEqual(askCommandFor(['claude', '--model', 'haiku', '-p'], 'claude-stream-json', 'claude-sonnet').command, ['claude', '--model', 'sonnet', '-p'], '不能出现两个 --model');
-  assert.deepEqual(askCommandFor(C, 'claude-stream-json', 'codex-gpt-5.6-sol'), { command: ['codex', 'exec', '-s', 'read-only', '--skip-git-repo-check', '-m', 'gpt-5.6-sol'], format: 'text', by: 'codex-gpt-5.6-sol' });
-  assert.deepEqual(askCommandFor(C, 'claude-stream-json', 'codex').command, ['codex', 'exec', '-s', 'read-only', '--skip-git-repo-check'], 'codex 不带模型 = 用它自己的默认');
+  assert.deepEqual(askCommandFor(C, 'claude-stream-json', 'codex-gpt-5.6-sol'), { command: ['codex', 'exec', '-s', 'read-only', '--skip-git-repo-check', '-m', 'gpt-5.6-sol', '-'], format: 'text', by: 'codex-gpt-5.6-sol' });
+  assert.deepEqual(askCommandFor(C, 'claude-stream-json', 'codex').command, ['codex', 'exec', '-s', 'read-only', '--skip-git-repo-check', '-'], 'codex 不带模型 = 用它自己的默认');
   assert.equal(askCommandFor(C, 'claude-stream-json', 'opus').by, 'claude-opus', '旧值 opus 兼容成 claude-opus');
   assert.deepEqual(askCommandFor(['my-llm', '-x'], 'text', 'claude-opus').command, ['my-llm', '-x']);
 });
 
-test('下拉选项：claude 四个 + 本机 codex 配置的模型；读不到 codex 配置就是 codex-默认', () => {
-  assert.deepEqual(askModelOptions('approval = "x"\nmodel = "gpt-5.6-sol"\n').map(o => o.label), ['默认', 'claude-fable', 'claude-opus', 'claude-sonnet', 'claude-haiku', 'codex-gpt-5.6-sol']);
-  assert.deepEqual(askModelOptions(undefined).at(-1), { id: 'codex', label: 'codex-默认' });
+test('下拉选项：Claude、多个 Codex 模型、本机配置模型和自定义 Agent', () => {
+  const labels = askModelOptions('approval = "x"\nmodel = "gpt-local"\n', { pi: { label: 'Pi Agent', command: ['pi', '--print'] } }).map(o => o.label);
+  assert.deepEqual(labels.slice(0, 6), ['默认', 'claude-fable', 'claude-opus', 'claude-sonnet', 'claude-haiku', 'codex-默认']);
+  assert.ok(labels.includes('codex-gpt-local') && labels.includes('codex-gpt-6.1-sol') && labels.includes('codex-gpt-6-astra'));
+  assert.equal(labels.at(-1), '自定义 · Pi Agent');
+});
+
+test('统一模型：自定义本地 Agent 的命令、格式和名称用于全部 AI 操作', () => {
+  const custom = { pi: { label: 'Pi Agent', command: ['pi', '--print'], format: 'text' as const } };
+  assert.deepEqual(modelCommandFor(['claude'], 'claude-stream-json', 'custom:pi', custom), { command: ['pi', '--print'], format: 'text', by: 'Pi Agent' });
+  assert.throws(() => modelCommandFor(['claude'], 'claude-stream-json', 'custom:missing', custom), /找不到自定义模型/);
 });
 
 test('命令里没有 {system} 占位符（如 codex）：系统提示拼进 stdin', async () => {

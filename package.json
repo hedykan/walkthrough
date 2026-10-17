@@ -2,7 +2,7 @@
   "name": "walkthrough",
   "displayName": "代码走读",
   "description": "带着人一步步审代码改动：选分支生成走读（AI），按调用链条逐步看只读快照与 diff，并能就地提问",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "hedykan",
   "private": true,
   "license": "UNLICENSED",
@@ -240,7 +240,7 @@
             "--append-system-prompt",
             "{system}"
           ],
-          "markdownDescription": "提问时运行的命令（参数数组，不经过 shell）。在本地仓库目录下运行，问题和上下文从 stdin 传入；`{system}` 会替换成系统提示。默认用 `--settings` 把输出风格固定为 default，回答不带个人的输出风格（answers.json 会发给别人看）。换 codex 可设为 `[\"codex\", \"exec\", \"-s\", \"read-only\", \"-\"]` 并把 `walkthrough.ask.format` 设为 `text`。"
+          "markdownDescription": "默认模型及 Claude 模型运行的基础命令（参数数组，不经过 shell）。生成走读和所有问答都使用左侧选择的「模型」；提示词从 stdin 传入，`{system}` 会替换成系统提示。选择 Codex 或自定义 Agent 时会使用对应命令。"
         },
         "walkthrough.ask.format": {
           "type": "string",
@@ -267,7 +267,21 @@
         "walkthrough.ask.model": {
           "type": "string",
           "default": "",
-          "markdownDescription": "问问题（面板「问问题」和编辑器快速问答）用哪个模型，写法「厂商-模型」：`claude-fable`、`claude-opus`、`claude-sonnet`、`claude-haiku`、`codex-gpt-5.6-sol`。留空 = 跟随 claude 自己的设置。左侧走读视图的「问答」下拉改的就是它。不影响生成走读。"
+          "markdownDescription": "生成走读、面板问答和编辑器快速问答统一使用的模型。可在左侧「模型」下拉选择 Claude、Codex 或自定义本地 Agent。留空时使用 `walkthrough.ask.command` 的默认模型。"
+        },
+        "walkthrough.ask.models": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "object",
+            "required": ["label", "command"],
+            "properties": {
+              "label": { "type": "string", "description": "下拉框中显示的名称" },
+              "command": { "type": "array", "items": { "type": "string" }, "description": "本地 Agent 命令参数数组；提示词从 stdin 输入" },
+              "format": { "type": "string", "enum": ["text", "claude-stream-json"], "default": "text", "description": "Agent 的标准输出格式" }
+            }
+          },
+          "markdownDescription": "通过左侧「模型」旁的 ＋ 添加的本地 Agent。也可以直接编辑；每项包含显示名称、命令参数数组和输出格式。"
         }
       }
     }

@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { AskFormat, answersPath, askModelOptions } from './ask';
+import { AskFormat, CustomModels, answersPath, askModelOptions, modelCommandFor } from './ask';
 import { CommitInfo, DirtyFile, commitInfo, deleteSnapshotRef, snapshotRefs, currentBranch, diffStat, dirtyFiles, fetchAll, logFrom, mainRepoRoot, snapshotWorktree, worktreeFor, isGitRepo, listBranches, logRange, mergeBase, remoteUrl, revParse } from './git';
 import { GenInput, PlanItem, Signal, assemble, cancel, generateItem, generatePlan, newSignal, pool, walkthroughFile, walkthroughKey } from './gen';
 import { Walkthrough } from './model';
@@ -93,15 +93,24 @@ export class Sidebar implements vscode.WebviewViewProvider, ItemsView {
 
   private dataDir() { return expand(vscode.workspace.getConfiguration('walkthrough').get<string>('dataDir') ?? ''); }
 
+  private customModels() { return vscode.workspace.getConfiguration('walkthrough.ask').get<CustomModels>('models') ?? {}; }
+
+  private refreshModels(codex?: string) {
+    if (codex === undefined) {
+      try { codex = fs.readFileSync(path.join(os.homedir(), '.codex', 'config.toml'), 'utf8'); } catch { /* 没装 codex */ }
+    }
+    this.s.askModels = askModelOptions(codex, this.customModels());
+    if (this.s.askModel && !this.s.askModels.some(m => m.id === this.s.askModel)) this.s.askModels.push({ id: this.s.askModel, label: this.s.askModel });
+  }
+
   private async init() {
     this.refreshDir();
     let codex: string | undefined;
     try { codex = fs.readFileSync(path.join(os.homedir(), '.codex', 'config.toml'), 'utf8'); } catch { /* 没装 codex */ }
-    this.s.askModels = askModelOptions(codex);
     const saved = vscode.workspace.getConfiguration('walkthrough.ask').get<string>('model') ?? '';
     // 旧值（opus 这种不带厂商的）显示成新写法
     this.s.askModel = saved && !saved.includes('-') && saved !== 'codex' ? `claude-${saved}` : saved;
-    if (this.s.askModel && !this.s.askModels.some(m => m.id === this.s.askModel)) this.s.askModels.push({ id: this.s.askModel, label: this.s.askModel });
+    this.refreshModels(codex);
     const conf = vscode.workspace.getConfiguration('walkthrough').get<Record<string, string>>('repoRoots') ?? {};
     const cands = new Map<string, string>();
     for (const [name, p] of Object.entries(conf)) cands.set(expand(p), name);
@@ -205,6 +214,7 @@ export class Sidebar implements vscode.WebviewViewProvider, ItemsView {
         this.s.askModel = m.value;
         await vscode.workspace.getConfiguration('walkthrough.ask').update('model', m.value || undefined, vscode.ConfigurationTarget.Global);
         return this.push();
+      case 'manageModels': return this.manageModels();
       case 'delete': return this.remove(m.file);
       case 'pickDir': {
         const picked = await vscode.window.showOpenDialog({
@@ -232,6 +242,48 @@ export class Sidebar implements vscode.WebviewViewProvider, ItemsView {
       case 'plan': this.planResolve?.(m.items); return;
       case 'snapshot': this.snapResolve?.(!!m.ok); return;
     }
+  }
+
+  private async manageModels() {
+    const custom = this.customModels();
+    const actions: { label: string; action: 'codex' | 'agent' | 'remove' }[] = [
+      { label: '$(add) 添加 Codex 模型', action: 'codex' },
+      { label: '$(terminal) 添加本地 Agent', action: 'agent' },
+      ...(Object.keys(custom).length ? [{ label: '$(trash) 删除自定义模型', action: 'remove' as const }] : []),
+    ];
+    const action = await vscode.window.showQuickPick(actions, { placeHolder: '管理模型' });
+    if (!action) return;
+    if (action.action === 'remove') {
+      const picked = await vscode.window.showQuickPick(Object.entries(custom).map(([id, m]) => ({ label: m.label, description: m.command.join(' '), id })), { placeHolder: '选择要删除的自定义模型' });
+      if (!picked) return;
+      delete custom[picked.id];
+      if (this.s.askModel === `custom:${picked.id}`) this.s.askModel = '';
+    } else if (action.action === 'codex') {
+      const model = (await vscode.window.showInputBox({ title: '添加 Codex 模型', prompt: '输入 Codex CLI 支持的模型 ID', placeHolder: '例如 gpt-6.1-sol', ignoreFocusOut: true }))?.trim();
+      if (!model) return;
+      const builtIn = `codex-${model}`;
+      if (askModelOptions(undefined).some(x => x.id === builtIn)) {
+        this.s.askModel = builtIn;
+        await vscode.workspace.getConfiguration('walkthrough.ask').update('model', builtIn, vscode.ConfigurationTarget.Global);
+        this.refreshModels(); this.push(); return;
+      }
+      const id = `codex-${model}`.replace(/[^a-zA-Z0-9._-]+/g, '-');
+      custom[id] = { label: `codex-${model}`, command: ['codex', 'exec', '-s', 'read-only', '--skip-git-repo-check', '-m', model, '-'], format: 'text' };
+      this.s.askModel = `custom:${id}`;
+    } else {
+      const label = (await vscode.window.showInputBox({ title: '添加本地 Agent', prompt: '显示名称', placeHolder: '例如 Pi Agent', ignoreFocusOut: true }))?.trim();
+      if (!label) return;
+      const raw = await vscode.window.showInputBox({ title: `添加 ${label}`, prompt: '输入命令参数数组；插件会把提示词写入 stdin，并从 stdout 读取回答', placeHolder: '["pi", "--print"]', value: label.toLowerCase().includes('pi') ? '["pi", "--print"]' : '', ignoreFocusOut: true, validateInput: value => { try { const a = JSON.parse(value); return Array.isArray(a) && a.length && a.every(x => typeof x === 'string') ? undefined : '必须是非空的字符串数组'; } catch { return '请输入合法 JSON，例如 ["pi", "--print"]'; } } });
+      if (!raw) return;
+      const command = JSON.parse(raw) as string[];
+      const id = `${label}-${Date.now().toString(36)}`.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+      custom[id] = { label, command, format: 'text' };
+      this.s.askModel = `custom:${id}`;
+    }
+    const conf = vscode.workspace.getConfiguration('walkthrough.ask');
+    await conf.update('models', custom, vscode.ConfigurationTarget.Global);
+    await conf.update('model', this.s.askModel || undefined, vscode.ConfigurationTarget.Global);
+    this.refreshModels(); this.push();
   }
 
   // ---- 生成 ----
@@ -273,8 +325,8 @@ export class Sidebar implements vscode.WebviewViewProvider, ItemsView {
     let range = this.s.range;
     if (!root || !range || !branch || this.signal) return;
     const conf = vscode.workspace.getConfiguration('walkthrough');
-    const command = conf.get<string[]>('ask.command') ?? [];
-    const format = conf.get<AskFormat>('ask.format') ?? 'claude-stream-json';
+    const selected = modelCommandFor(conf.get<string[]>('ask.command') ?? [], conf.get<AskFormat>('ask.format') ?? 'claude-stream-json', this.s.askModel, conf.get<CustomModels>('ask.models') ?? {});
+    const { command, format, by } = selected;
     const specPath = expand(conf.get<string>('generate.spec') ?? '');
     const spec = fs.readFileSync(fs.existsSync(specPath) ? specPath : path.join(__dirname, 'GENERATE.md'), 'utf8');
     const sig = this.signal = newSignal();
@@ -327,7 +379,7 @@ export class Sidebar implements vscode.WebviewViewProvider, ItemsView {
       if (!items.length) { set({ stage: 'error', note: '每一项都生成失败了，看上面的原因', progress }); return; }
       const file = walkthroughFile(this.dataDir(), g.repoName, g.base, g.head);
       fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, JSON.stringify(assemble(g, items, command[0]?.split('/').pop() ?? 'AI'), null, 2) + '\n');
+      fs.writeFileSync(file, JSON.stringify(assemble(g, items, by), null, 2) + '\n');
       this.loadExisting();
       const failed = progress.filter(p => p.status === 'fail').length;
       set(undefined);

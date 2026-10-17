@@ -120,13 +120,23 @@ export function parseClaudeLine(line: string): AskEvent[] {
 
 export type AskFormat = 'claude-stream-json' | 'text';
 
-// ---- 问答模型：左侧下拉选。写法统一「厂商-模型」：claude-opus、codex-gpt-5.6-sol；空 = 跟随 claude 自己的设置 ----
+// ---- 统一模型：左侧选一次，生成走读、面板问答、编辑器快速问答都用它 ----
 export const CLAUDE_MODELS = ['claude-fable', 'claude-opus', 'claude-sonnet', 'claude-haiku'];
+export const CODEX_MODELS = ['gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol'];
+export interface CustomModel { label: string; command: string[]; format?: AskFormat }
+export type CustomModels = Record<string, CustomModel>;
 
-/** 下拉选项：claude 四个 + 本机 codex 配置的那个模型（读 ~/.codex/config.toml，读不到就是 codex-默认） */
-export function askModelOptions(codexConfig?: string): { id: string; label: string }[] {
+/** 下拉选项：Claude、多个 Codex 模型、本机 Codex 默认，以及用户添加的本地 Agent。 */
+export function askModelOptions(codexConfig?: string, custom: CustomModels = {}): { id: string; label: string; custom?: boolean }[] {
   const m = codexConfig?.match(/^\s*model\s*=\s*"([^"]+)"/m)?.[1];
-  return [{ id: '', label: '默认' }, ...CLAUDE_MODELS.map(id => ({ id, label: id })), m ? { id: `codex-${m}`, label: `codex-${m}` } : { id: 'codex', label: 'codex-默认' }];
+  const codex = [...new Set([m, ...CODEX_MODELS].filter((x): x is string => !!x))];
+  return [
+    { id: '', label: '默认' },
+    ...CLAUDE_MODELS.map(id => ({ id, label: id })),
+    { id: 'codex', label: 'codex-默认' },
+    ...codex.map(model => ({ id: `codex-${model}`, label: `codex-${model}` })),
+    ...Object.entries(custom).map(([id, value]) => ({ id: `custom:${id}`, label: `自定义 · ${value.label}`, custom: true })),
+  ];
 }
 
 /** 「厂商-模型」→ 厂商与模型；旧值（opus、codex）兼容：没有厂商前缀的当作 claude */
@@ -140,13 +150,21 @@ export function parseAskModel(v: string): { vendor: 'claude' | 'codex'; model: s
 /** 按选的模型调整问答命令：claude 加 --model；codex 换成只读沙箱的 codex exec（-m 指定模型），输出按纯文本处理 */
 export function askCommandFor(command: string[], format: AskFormat, model: string): { command: string[]; format: AskFormat; by: string } {
   const p = parseAskModel(model);
-  if (p?.vendor === 'codex') return { command: ['codex', 'exec', '-s', 'read-only', '--skip-git-repo-check', ...(p.model ? ['-m', p.model] : [])], format: 'text', by: p.model ? `codex-${p.model}` : 'codex' };
+  if (p?.vendor === 'codex') return { command: ['codex', 'exec', '-s', 'read-only', '--skip-git-repo-check', ...(p.model ? ['-m', p.model] : []), '-'], format: 'text', by: p.model ? `codex-${p.model}` : 'codex' };
   const base = { command, format, by: command[0]?.split('/').pop() ?? 'AI' };
   if (!p || !/(^|\/)claude$/.test(command[0] ?? '')) return base;
   const rest = command.slice(1);
   const at = rest.indexOf('--model');
   if (at >= 0) rest.splice(at, 2);
   return { command: [command[0], '--model', p.model, ...rest], format, by: `claude-${p.model}` };
+}
+
+/** 解析统一模型选择；自定义 Agent 的提示词走 stdin，回答从 stdout 读取。 */
+export function modelCommandFor(command: string[], format: AskFormat, model: string, custom: CustomModels = {}): { command: string[]; format: AskFormat; by: string } {
+  if (!model.startsWith('custom:')) return askCommandFor(command, format, model);
+  const preset = custom[model.slice('custom:'.length)];
+  if (!preset?.command?.length) throw new Error(`找不到自定义模型：${model}`);
+  return { command: preset.command, format: preset.format ?? 'text', by: preset.label || model };
 }
 
 

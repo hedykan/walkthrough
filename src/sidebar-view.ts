@@ -28,6 +28,7 @@ select, input[type=text] { flex: 1; min-width: 0; font: inherit; font-size: 12.5
 .blist .b.on .bt { color: inherit; opacity: .8; }
 .bmore { padding: 4px 8px; color: var(--dim); font-size: 11.5px; }
 button.icon { flex: none; padding: 1px 7px; background: transparent; color: var(--key); border: 1px solid var(--line); }
+.model-add { width: 26px; height: 24px; display: grid; place-items: center; padding: 0!important; font-size: 16px!important; }
 .fork { color: var(--dim); font-size: 11.5px; font-family: var(--vscode-editor-font-family); white-space: nowrap; }
 h3 { font-size: 11px; font-weight: 600; letter-spacing: .5px; color: var(--dim); margin: 12px 0 4px; display: flex; justify-content: space-between; align-items: center; }
 h3 a { font-weight: 400; letter-spacing: 0; cursor: pointer; color: var(--key); }
@@ -102,7 +103,7 @@ function render() {
      + '<button class="icon" id="fetch" title="拉取远端分支（git fetch --prune origin，不动工作区）"' + (S.fetching ? ' disabled' : '') + '>' + (S.fetching ? '…' : '⟳') + '</button></div>';
   h += '<div class="row"><label>对比</label>' + comboHtml('cq', S.baseRef, '搜索基准分支…')
      + (S.fork && !S.merged ? '<span class="fork">分叉 ' + esc(S.fork.slice(0, 8)) + '</span>' : '') + '</div>';
-  h += '<div class="row"><label>问答</label><select id="model" title="问问题用哪个模型（不影响生成走读）">' + S.askModels.map(m => '<option value="' + esc(m.id) + '"' + (m.id === S.askModel ? ' selected' : '') + '>' + esc(m.label) + '</option>').join('') + '</select></div>';
+  h += '<div class="row"><label>模型</label><select id="model" title="生成走读和所有问答都使用这个模型">' + S.askModels.map(m => '<option value="' + esc(m.id) + '"' + (m.id === S.askModel ? ' selected' : '') + '>' + esc(m.label) + '</option>').join('') + '</select><button class="icon model-add" id="manageModels" title="添加或删除模型">＋</button></div>';
   if (S.error) h += '<div class="err">' + esc(S.error) + '</div>';
   if (rows.length) {
     h += '<h3><span>' + (S.merged ? '最近提交（已合入 ' + esc(S.merged) + '，没有独有的提交）' : '提交（' + esc(S.baseRef) + ' 分叉后 ' + S.commits.length + ' 个）') + '</span><a id="fold">' + (logOpen ? '收起' : '展开') + '</a></h3>';
@@ -246,6 +247,7 @@ document.addEventListener('click', e => {
   const t = e.target;
   if (t.id === 'fold') { logOpen = !logOpen; render(); return; }
   if (t.id === 'gen') return vscode.postMessage({ type: 'generate' });
+  if (t.id === 'manageModels') return vscode.postMessage({ type: 'manageModels' });
   if (t.id === 'fetch') return vscode.postMessage({ type: 'fetch' });
   if (t.id === 'pickDir' || t.id === 'pickDir2') return vscode.postMessage({ type: 'pickDir' });
   if (t.id === 'useDefaultDir') return vscode.postMessage({ type: 'useDefaultDir' });

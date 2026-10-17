@@ -4,6 +4,7 @@ dist-test/**
 docs/**
 node_modules/**
 esbuild.mjs
+GENERATE.md
 tsconfig.json
 **/*.map
 pnpm-lock.yaml

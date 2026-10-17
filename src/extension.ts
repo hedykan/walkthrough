@@ -10,7 +10,7 @@ import { clear, decorate, decorateRef } from './decorations';
 import { ItemsView, Sidebar } from './sidebar';
 import { QuickAsk } from './quick';
 import { Focus, PanelMsg, ShownRow, navigate, renderAnswer, renderItem, renderTrail } from './panel';
-import { Answer, AskFormat, AskTarget, askCommandFor, buildPrompt, loadAnswers, runAsk, saveAnswer, systemPrompt, targetKey } from './ask';
+import { Answer, AskFormat, AskTarget, CustomModels, buildPrompt, loadAnswers, modelCommandFor, runAsk, saveAnswer, systemPrompt, targetKey } from './ask';
 
 const expand = (p: string) => p.replace(/^~(?=\/|$)/, os.homedir());
 
@@ -220,7 +220,7 @@ class Session {
     if (!q) return;
 
     const conf = vscode.workspace.getConfiguration('walkthrough.ask');
-    const { command, format, by } = askCommandFor(conf.get<string[]>('command') ?? [], conf.get<AskFormat>('format') ?? 'claude-stream-json', conf.get<string>('model') ?? '');
+    const { command, format, by } = modelCommandFor(conf.get<string[]>('command') ?? [], conf.get<AskFormat>('format') ?? 'claude-stream-json', conf.get<string>('model') ?? '', conf.get<CustomModels>('models') ?? {});
     if (!command.length) { vscode.window.showErrorMessage('没有配置 walkthrough.ask.command'); return; }
 
     const ref = this.refs.find(r => r.item.id === t.item && r.node.id === (t.node ?? this.refs[this.index].node.id))
