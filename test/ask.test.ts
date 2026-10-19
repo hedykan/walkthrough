@@ -10,16 +10,16 @@ import { renderMd } from '../src/markdown';
 import { flatten } from '../src/model';
 import { renderAnswer, renderItem, renderTrail } from '../src/panel';
 
-const SAMPLE = path.join(os.homedir(), 'Develope/loloyal/loloyal-myself/walkthrough/loloyal-services-be/code/72872858..b442c435.json');
+import { REPO, SAMPLE } from './fixtures';
 
 test('提示词带齐：项的说明、整条链条、点选的那段、这一步的代码与 diff、问题', () => {
   const w = loadWalkthrough(SAMPLE);
   const item = w.items[0];
-  const p = buildPrompt(w, item, { item: 'i1', kind: 'note', node: 'i1-n5', line: 50 }, '为什么不直接删掉开关参数？', {
+  const p = buildPrompt(w, item, { item: 'i1', kind: 'note', node: 'i1-n5', line: 34 }, '为什么不等到扣款前才拿锁？', {
     path: 'a.go', start: 36, end: 38, lines: ['func x(', '  a bool,', ') {'], diff: ['+  a bool,  // L37'],
   });
-  for (const s of [w.meta.anchor.head, item.why, item.idea, '★ 推算缺省值', '○ 接口入口', '第 5 步「推算缺省值」第 50 行的修改说明',
-    '不挂任何规则', '36  func x(', '+  a bool,  // L37', '为什么不直接删掉开关参数？']) assert.ok(p.includes(s), `缺：${s}`);
+  for (const s of [w.meta.anchor.head, item.why, item.idea, '★ 先拿锁再检查', '○ 接口入口', '第 5 步「先拿锁再检查」第 34 行的修改说明',
+    '扣款失败也会释放', '36  func x(', '+  a bool,  // L37', '为什么不等到扣款前才拿锁？']) assert.ok(p.includes(s), `缺：${s}`);
   const sys = systemPrompt(w.meta.anchor.base, w.meta.anchor.head);
   assert.ok(sys.includes(`git show ${w.meta.anchor.head}:`) && sys.includes('只读'));
 });
@@ -77,10 +77,10 @@ test('回答渲染在它点选的那段下面，且内容被转义', () => {
   const w = loadWalkthrough(SAMPLE);
   const refs = flatten(w);
   const ref = refs.find(r => r.node.id === 'i1-n5')!;
-  const a: Answer = { id: 'x1', target: { item: 'i1', kind: 'note', node: 'i1-n5', line: 50 }, q: '<b>问</b>', a: '答 **重点**\n```go\nif a < b {}\n```', at: '2026-10-12T10:00:00Z', by: 'claude' };
-  const html = renderItem(w, refs, ref, [{ kind: 'added', line: 50, text: 'if !includesShipping {' }], 'N', '', [a]);
+  const a: Answer = { id: 'x1', target: { item: 'i1', kind: 'note', node: 'i1-n5', line: 34 }, q: '<b>问</b>', a: '答 **重点**\n```go\nif a < b {}\n```', at: '2026-10-12T10:00:00Z', by: 'claude' };
+  const html = renderItem(w, refs, ref, [{ kind: 'added', line: 34, text: 'defer release()' }], 'N', '', [a]);
   const box = html.indexOf(`data-key="${targetKey(a.target)}"`);
-  assert.ok(box > html.indexOf('不挂任何规则</'), '回答区应在那条说明后面');
+  assert.ok(box > html.indexOf('扣款失败也会释放。</'), '回答区应在那条说明后面');
   assert.ok(html.indexOf('data-aid="x1"') > box);
   assert.ok(html.includes('&lt;b&gt;问&lt;/b&gt;') && html.includes('<pre><code>if a &lt; b {}</code></pre>'));
 });
@@ -101,7 +101,7 @@ test('回答渲染出来一律收起，状态写在标题行', () => {
 test('「问」按钮带上回答区的 key，两者一一对应', () => {
   const w = loadWalkthrough(SAMPLE);
   const refs = flatten(w);
-  const html = renderItem(w, refs, refs[4], [{ kind: 'added', line: 50, text: 'x' }], 'N', '');
+  const html = renderItem(w, refs, refs[4], [{ kind: 'added', line: 34, text: 'x' }], 'N', '');
   const btnKeys = [...html.matchAll(/class="ask"[^>]*data-key="([^"]+)"/g)].map(m => m[1]);
   const boxKeys = new Set([...html.matchAll(/class="qa" data-key="([^"]+)"/g)].map(m => m[1]));
   assert.ok(btnKeys.length >= 4);
@@ -113,7 +113,7 @@ test('「问问题」在每个块的最下面：先回答区，后按钮；以�
   const w = loadWalkthrough(SAMPLE);
   const refs = flatten(w);
   const ref = refs.find(r => r.node.id === 'i1-n5')!;
-  const html = renderItem(w, refs, ref, [{ kind: 'added', line: 50, text: 'x' }], 'N', '');
+  const html = renderItem(w, refs, ref, [{ kind: 'added', line: 34, text: 'x' }], 'N', '');
   assert.ok(html.indexOf('<h2>以前') < html.indexOf('<h2>现在'));
   for (const t of [{ item: 'i1', kind: 'why' }, { item: 'i1', kind: 'scenario' }, { item: 'i1', kind: 'node', node: 'i1-n5' }] as const) {
     const k = targetKey(t);
@@ -126,19 +126,18 @@ test('「问问题」在每个块的最下面：先回答区，后按钮；以�
   assert.ok(html.includes('>问问题</button>') && !html.includes('>问</button>'));
 });
 
-const REPO = path.join(os.homedir(), 'Develope/loloyal/loloyal-services-be');
-const FUSION = 'internal/service/point/engine/fusion.go';
+const FEE = 'internal/payment/engine/fee.go';
 
 test('回答里裸写的「文件:行号」用 head 文件列表解析成链接（用户贴的真实回答）', async () => {
   const w = loadWalkthrough(SAMPLE);
   const paths = await listFiles(REPO, w.meta.anchor.head);
-  const ans = '按金额计分的规则在金额为 0 时，算出的份数本来就是 0，不需要额外拦（fusion.go:162-166）。\n' +
-    '- 固定积分规则直接返回配置的分值（`fusion.go:168`）。\n- 已经是链接的不动：[看这里](' + FUSION + '#L155-L157)';
+  const ans = '手续费按金额乘费率计算，不足 1 分按 1 分收（fee.go:8-12）。\n' +
+    '- 金额不大于 0 时手续费为 0（`fee.go:5`）。\n- 已经是链接的不动：[看这里](' + FEE + '#L4-L7)';
   const out = linkifyRefs(ans, paths);
-  assert.ok(out.includes(`[fusion.go:162-166](${FUSION}#L162-L166)`), out);
-  assert.ok(out.includes(`[fusion.go:168](${FUSION}#L168)`) && !out.includes('`fusion.go:168`'));
-  assert.ok(out.includes(`[看这里](${FUSION}#L155-L157)`) && !out.includes('[[看这里'));
-  assert.equal(resolveRefPath('engine/fusion.go', paths), FUSION);
+  assert.ok(out.includes(`[fee.go:8-12](${FEE}#L8-L12)`), out);
+  assert.ok(out.includes(`[fee.go:5](${FEE}#L5)`) && !out.includes('`fee.go:5`'));
+  assert.ok(out.includes(`[看这里](${FEE}#L4-L7)`) && !out.includes('[[看这里'));
+  assert.equal(resolveRefPath('engine/fee.go', paths), FEE);
 });
 
 test('同名文件判断不出是哪个就不乱链；链条里出现过的优先', async () => {
@@ -148,25 +147,25 @@ test('同名文件判断不出是哪个就不乱链；链条里出现过的优�
   assert.ok(dup.length > 1, '仓库里应有多个 service.go');
   assert.equal(resolveRefPath('service.go', paths), undefined);
   assert.equal(linkifyRefs('见 service.go:160', paths), '见 service.go:160');
-  assert.equal(resolveRefPath('service.go', paths, ['cmd/genz/earn_rule/service.go']), 'cmd/genz/earn_rule/service.go');
+  assert.equal(resolveRefPath('service.go', paths, ['internal/refund/service.go']), 'internal/refund/service.go');
   assert.equal(resolveRefPath('nope.go', paths), undefined);
 });
 
 test('面板里的回答：引用渲染成可点链接', () => {
-  const a: Answer = { id: 'r1', target: { item: 'i3', kind: 'node', node: 'i3-n6' }, q: 'q', a: '固定积分不看金额（fusion.go:168）。', at: '2026-10-12T10:00:00Z', by: 'claude', status: 'done' };
-  assert.ok(renderAnswer(a, [FUSION, 'x/a.go']).includes(`data-link="${FUSION}#L168"`));
+  const a: Answer = { id: 'r1', target: { item: 'i3', kind: 'node', node: 'i3-n6' }, q: 'q', a: '手续费最低 1 分（fee.go:10）。', at: '2026-10-12T10:00:00Z', by: 'claude', status: 'done' };
+  assert.ok(renderAnswer(a, [FEE, 'x/a.go']).includes(`data-link="${FEE}#L10"`));
   assert.ok(!renderAnswer(a, []).includes('data-link'), '没有文件列表时不猜');
 });
 
 test('提示词带上之前的问答：同一段完整、同一项其他段节选、别的项不带；还有其他项概览', () => {
   const w = loadWalkthrough(SAMPLE);
   const item = w.items[2];
-  const t = { item: 'i3', kind: 'node' as const, node: 'i3-n5' };
+  const t = { item: 'i3', kind: 'node' as const, node: 'i3-n4' };
   const A = (id: string, target: Answer['target'], at: string, q: string, a: string, status?: Answer['status']): Answer => ({ id, target, q, a, at, by: 'claude', status });
   const answers = [
-    A('2', t, '2026-10-12T02:39:00Z', '和第四步一样吗', '对，都是 zeroOutByBase。'.repeat(40)),
-    A('1', t, '2026-10-12T02:36:00Z', '检测固定金额的0元吗', '是的'),
-    A('3', { item: 'i3', kind: 'why' }, '2026-10-12T02:14:00Z', '计分为0是干嘛的', 'X'.repeat(500)),
+    A('2', t, '2026-10-12T02:39:00Z', '和第四步一样吗', '对，都是 acquireOrderLock。'.repeat(40)),
+    A('1', t, '2026-10-12T02:36:00Z', '扣款失败也会放锁吗', '是的'),
+    A('3', { item: 'i3', kind: 'why' }, '2026-10-12T02:14:00Z', '为什么要加锁', 'X'.repeat(500)),
     A('4', { item: 'i1', kind: 'why' }, '2026-10-12T02:00:00Z', '别的项的问题', '别的项的回答'),
     A('5', t, '2026-10-12T02:41:00Z', '还在答', '半截', 'running'),
   ];
@@ -174,11 +173,11 @@ test('提示词带上之前的问答：同一段完整、同一项其他段节�
   assert.deepEqual(h.same.map(a => a.id), ['1', '2'], '同一段按时间排，不含回答中的');
   assert.deepEqual(h.others.map(a => a.id), ['3']);
   const p = buildPrompt(w, item, t, '前面的回复压缩一下', undefined, answers);
-  assert.ok(p.includes('对，都是 zeroOutByBase。'.repeat(40)), '同一段的回答要完整');
+  assert.ok(p.includes('对，都是 acquireOrderLock。'.repeat(40)), '同一段的回答要完整');
   assert.ok(p.includes('X'.repeat(300) + '…（后略）') && !p.includes('X'.repeat(301)), '其他段只节选 300 字');
   assert.ok(!p.includes('别的项的回答') && !p.includes('半截'));
   assert.ok(p.indexOf('第 1 轮') < p.indexOf('第 2 轮') && p.indexOf('第 2 轮') < p.indexOf('## 问题'));
-  assert.ok(p.includes('## 这份走读的其他项') && p.includes(w.items[0].title) && p.includes(w.items[4].title));
+  assert.ok(p.includes('## 这份走读的其他项') && p.includes(w.items[0].title) && p.includes(w.items[1].title));
 });
 
 test('快速问答提示词：选中行标 ▶，注明 base / head，带上这个框里的前几轮', () => {
@@ -192,9 +191,9 @@ test('快速问答提示词：选中行标 ▶，注明 base / head，带上这�
 });
 
 test('评论框里的代码引用改成命令链接，带上所在那一行当说明；外链不动', () => {
-  const out = commandLinks('结论一句。\n- **小问题**：固定积分不看金额，见 [fusion.go:168](internal/x/fusion.go#L168)。\n见 [PR](https://github.com/a/b/pull/1)');
+  const out = commandLinks('结论一句。\n- **小问题**：手续费最低 1 分，见 [fee.go:10](internal/x/fee.go#L10)。\n见 [PR](https://github.com/a/b/pull/1)');
   const m = out.match(/\(command:walkthrough\.openRef\?([^)]+)\)/)!;
-  assert.deepEqual(JSON.parse(decodeURIComponent(m[1])), ['internal/x/fusion.go#L168', '小问题：固定积分不看金额，见 fusion.go:168。', 'fusion.go:168']);
+  assert.deepEqual(JSON.parse(decodeURIComponent(m[1])), ['internal/x/fee.go#L10', '小问题：手续费最低 1 分，见 fee.go:10。', 'fee.go:10']);
   assert.ok(out.includes('[PR](https://github.com/a/b/pull/1)'));
 });
 
@@ -202,19 +201,19 @@ test('改动区里不再有「问问题」，但以前在修改说明上问过�
   const w = loadWalkthrough(SAMPLE);
   const refs = flatten(w);
   const ref = refs.find(r => r.node.id === 'i3-n4')!;
-  const old: Answer = { id: 'n1', target: { item: 'i3', kind: 'note', node: 'i3-n4', line: 52 }, q: '抽出公共函数吗', a: '是', at: '2026-10-12T02:33:00Z', by: 'claude' };
-  const html = renderItem(w, refs, ref, [{ kind: 'modified', line: 52, text: 'x', old: 'y' }], 'N', '', [old]);
+  const old: Answer = { id: 'n1', target: { item: 'i3', kind: 'note', node: 'i3-n4', line: 68 }, q: '抽出公共函数吗', a: '是', at: '2026-10-12T02:33:00Z', by: 'claude' };
+  const html = renderItem(w, refs, ref, [{ kind: 'modified', line: 68, text: 'x', old: 'y' }], 'N', '', [old]);
   const diff = html.slice(html.indexOf('<div class="diff">'), html.indexOf('</div></div>', html.indexOf('<div class="diff">')));
   assert.ok(!diff.includes('class="ask"'), '改动区里不该有按钮');
   assert.ok(html.includes('data-aid="n1"'), '旧回答还在');
 });
 
 test('面包屑：没跳过不显示；最后一段是当前位置不可点；← 指向上一处', () => {
-  assert.equal(renderTrail('第 5 步 命中多条规则', []), '');
-  const h = renderTrail('第 5 步 命中多条规则', [{ label: 'fusion.go:168' }, { label: 'sink.go:290' }]);
-  assert.ok(h.includes('data-trail="-1">第 5 步 命中多条规则</a>'));
-  assert.ok(h.includes('data-trail="0">fusion.go:168</a>'));
-  assert.ok(h.includes('<span class="tseg cur">sink.go:290</span>'));
+  assert.equal(renderTrail('第 5 步 先拿锁再检查', []), '');
+  const h = renderTrail('第 5 步 先拿锁再检查', [{ label: 'fee.go:10' }, { label: 'gateway.go:15' }]);
+  assert.ok(h.includes('data-trail="-1">第 5 步 先拿锁再检查</a>'));
+  assert.ok(h.includes('data-trail="0">fee.go:10</a>'));
+  assert.ok(h.includes('<span class="tseg cur">gateway.go:15</span>'));
   assert.ok(h.startsWith('<span class="tback" data-trail="0"'), '← 回到倒数第二段');
   assert.ok(renderTrail('步', [{ label: '<x>' }]).includes('&lt;x&gt;') && renderTrail('步', [{ label: 'a' }]).includes('data-trail="-1" title'));
 });

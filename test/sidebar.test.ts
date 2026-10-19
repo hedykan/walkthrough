@@ -19,8 +19,8 @@ function boot(extra: Record<string, unknown> = {}) {
     repos: [{ name: 'repo', root: '/r' }], repo: '/r',
     branches: [
       { name: 'main', date: now - 60, remote: false },
-      { name: 'origin/hotfix/metafield-partial', date: now - 3600 * 5, remote: true },
-      { name: 'feat/v14.9-mul-pao', date: now - 86400 * 3, remote: false },
+      { name: 'origin/hotfix/refund-rounding', date: now - 3600 * 5, remote: true },
+      { name: 'feature/payment-lock', date: now - 86400 * 3, remote: false },
     ],
     branch: 'main', bases: ['origin/main', 'origin/dev'], baseRef: 'origin/main', commits: [], existing: {},
     dir: { show: '~/walkthroughs', full: '/Users/x/walkthroughs', ask: false }, history: [],
@@ -39,7 +39,7 @@ test('点进分支框：不被当前分支名过滤，列出全部分支', async
   const t = boot(); await t.flush();
   assert.equal(t.q().value, 'main');
   t.q().focus(); await t.flush();
-  assert.deepEqual(t.rows(), ['main', 'origin/hotfix/metafield-partial', 'feat/v14.9-mul-pao']);
+  assert.deepEqual(t.rows(), ['main', 'origin/hotfix/refund-rounding', 'feature/payment-lock']);
   assert.ok(t.d.querySelector('#bq-list .b.cur'), '当前分支要标出来');
   assert.match(t.d.querySelector('#bq-list').textContent, /远端 · 5 小时前/);
 });
@@ -47,11 +47,11 @@ test('点进分支框：不被当前分支名过滤，列出全部分支', async
 test('打字按「包含」筛选，不区分大小写；回车选中发消息', async () => {
   const t = boot(); await t.flush();
   t.q().focus(); await t.flush();
-  t.q().value = 'META';
+  t.q().value = 'REFUND';
   t.q().dispatchEvent(new t.w.Event('input', { bubbles: true }));
-  assert.deepEqual(t.rows(), ['origin/hotfix/metafield-partial']);
+  assert.deepEqual(t.rows(), ['origin/hotfix/refund-rounding']);
   t.key('Enter'); await t.flush();
-  assert.deepEqual(t.sent.filter(m => m.type === 'branch'), [{ type: 'branch', name: 'origin/hotfix/metafield-partial' }]);
+  assert.deepEqual(t.sent.filter(m => m.type === 'branch'), [{ type: 'branch', name: 'origin/hotfix/refund-rounding' }]);
   assert.equal(t.d.getElementById('bq-list').hidden, true);
 });
 
@@ -59,15 +59,15 @@ test('↓ 移动高亮、点选也能选；Esc 关闭并恢复原值；⟳ 发 f
   const t = boot(); await t.flush();
   t.q().focus(); await t.flush();
   t.key('ArrowDown');
-  assert.equal(t.d.querySelector('#bq-list .b.on').dataset.b, 'origin/hotfix/metafield-partial');
+  assert.equal(t.d.querySelector('#bq-list .b.on').dataset.b, 'origin/hotfix/refund-rounding');
   t.q().value = 'zzz'; t.q().dispatchEvent(new t.w.Event('input', { bubbles: true }));
   assert.match(t.d.getElementById('bq-list').textContent, /没有匹配的分支/);
   t.key('Escape'); await t.flush();
   assert.equal(t.q().value, 'main');
   t.q().focus(); await t.flush();
-  const row = t.d.querySelector('#bq-list .b[data-b="feat/v14.9-mul-pao"]');
+  const row = t.d.querySelector('#bq-list .b[data-b="feature/payment-lock"]');
   row.dispatchEvent(new t.w.MouseEvent('mousedown', { bubbles: true }));
-  assert.deepEqual(t.sent.filter(m => m.type === 'branch').pop(), { type: 'branch', name: 'feat/v14.9-mul-pao' });
+  assert.deepEqual(t.sent.filter(m => m.type === 'branch').pop(), { type: 'branch', name: 'feature/payment-lock' });
   t.d.getElementById('fetch').click();
   assert.ok(t.sent.some(m => m.type === 'fetch'));
 });
@@ -79,7 +79,7 @@ test('对比也是可搜索下拉：常用主干排最前，后面是全部分�
   c.focus(); await t.flush();
   const rows = [...t.d.querySelectorAll('#cq-list .b')].map((e: any) => e.dataset.b);
   assert.deepEqual(rows.slice(0, 2), ['origin/main', 'origin/dev']);
-  assert.ok(rows.includes('feat/v14.9-mul-pao'), '任意分支都能当基准');
+  assert.ok(rows.includes('feature/payment-lock'), '任意分支都能当基准');
   c.value = 'dev'; c.dispatchEvent(new t.w.Event('input', { bubbles: true }));
   c.dispatchEvent(new t.w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
   assert.deepEqual(t.sent.filter(m => m.type === 'base'), [{ type: 'base', ref: 'origin/dev' }]);
@@ -87,14 +87,14 @@ test('对比也是可搜索下拉：常用主干排最前，后面是全部分�
 
 test('分支已合入：提示已合入、不预选范围；点终点 + Shift 点起点后出现生成按钮', async () => {
   const C = (sha: string, subject: string) => ({ sha: sha.padEnd(40, '0'), short: sha, subject, author: 'a', ago: '1 天前', merge: false });
-  const commits = [C('844a49e9', '最新'), C('b442c435', 'Sidekick'), C('7b6b5c15', '退款'), C('72872858', '更早')];
+  const commits = [C('1b4f945c', '最新'), C('f2c3bced', '退款加锁'), C('c47b8a12', '支付加锁'), C('dfca5cf3', '更早')];
   const t = boot({ merged: 'origin/main', fork: commits[0].sha, commits }); await t.flush();
   assert.match(t.d.body.textContent, /已合入 origin\/main，没有独有的提交/);
   assert.match(t.d.body.textContent, /分支已合入，自己点选/);
   assert.equal(t.d.getElementById('gen'), null, '没选范围前不出现生成按钮');
   // 模拟扩展收到 range 后回推的 state
   t.post({ merged: 'origin/main', commits, range: { head: commits[1].sha, base: commits[3].sha } }); await t.flush();
-  assert.match(t.d.querySelector('.sum').textContent, /72872858..b442c435 · 2 个提交/);
+  assert.match(t.d.querySelector('.sum').textContent, /dfca5cf3..f2c3bced · 2 个提交/);
   assert.ok(t.d.getElementById('gen'));
 });
 
@@ -130,13 +130,13 @@ test('走读目录：显示短路径（悬停看全路径）；更改 / 打开�
 
 test('这个分支的走读：列出记录（日期、范围、几项、标题），正在看的标出来，点一下打开', async () => {
   const history = [
-    { key: 'dc134417..76fab0a4', file: '/w/a.json', title: '修复 metafield', base: '', head: '', branch: 'x', at: '2026-10-14T03:00:00Z', items: 2 },
-    { key: '72872858..b442c435', file: '/w/b.json', title: '三处修正', base: '', head: '', branch: 'x', at: '2026-10-10T03:00:00Z', items: 5 },
+    { key: 'a81c02f0..3f9d1e27', file: '/w/a.json', title: '修复重复扣款', base: '', head: '', branch: 'x', at: '2026-10-14T03:00:00Z', items: 2 }, // gitleaks:allow 虚构的提交区间，不是密钥
+    { key: 'dfca5cf3..f2c3bced', file: '/w/b.json', title: '支付流程重构', base: '', head: '', branch: 'x', at: '2026-10-10T03:00:00Z', items: 5 },
   ];
-  const t = boot({ history, wt: { title: '三处修正', file: '/w/b.json', items: [], current: -1 } }); await t.flush();
+  const t = boot({ history, wt: { title: '支付流程重构', file: '/w/b.json', items: [], current: -1 } }); await t.flush();
   assert.match(t.d.body.textContent, /这个分支的走读（2）/);
   const rows = [...t.d.querySelectorAll('.hist li')] as any[];
-  assert.deepEqual(rows.map(r => r.querySelector('.hk').textContent), ['dc134417..76fab0a4', '72872858..b442c435']);
+  assert.deepEqual(rows.map(r => r.querySelector('.hk').textContent), ['a81c02f0..3f9d1e27', 'dfca5cf3..f2c3bced']);
   assert.equal(rows[0].querySelector('.hd').textContent, '10-14');
   assert.ok(rows[1].classList.contains('cur') && /正在看/.test(rows[1].textContent));
   rows[0].click();
@@ -149,12 +149,12 @@ test('工作区（未提交）：列表顶上多一行；默认终点是它；�
   const C = (sha: string, subject: string) => ({ sha: sha.padEnd(40, '0'), short: sha, subject, author: 'a', ago: '1 天前', merge: false });
   const commits = [C('18927c6a', '最新提交'), C('239620ac', '更早')];
   const work = { dir: '/w/plan-rename', show: '~/w/plan-rename', files: [{ status: ' M', path: 'a.go' }, { status: '??', path: 'new.go' }] };
-  const t = boot({ commits, forkInfo: C('dc134417', 'fork'), fork: 'dc134417'.padEnd(40, '0'), work, range: { base: 'dc134417'.padEnd(40, '0'), head: 'WORKTREE' } });
+  const t = boot({ commits, forkInfo: C('a81c02f0', 'fork'), fork: 'a81c02f0'.padEnd(40, '0'), work, range: { base: 'a81c02f0'.padEnd(40, '0'), head: 'WORKTREE' } });
   await t.flush();
   const rows = [...t.d.querySelectorAll('.log .c')] as any[];
   assert.match(rows[0].textContent, /工作区（未提交）· 2 个文件/);
   assert.ok(rows[0].classList.contains('head'));
-  assert.match(t.d.querySelector('.sum').textContent, /dc134417..工作区 · 2 个提交 \+ 未提交改动/);
+  assert.match(t.d.querySelector('.sum').textContent, /a81c02f0..工作区 · 2 个提交 \+ 未提交改动/);
   rows[0].dispatchEvent(new t.w.MouseEvent('click', { bubbles: true, shiftKey: true, detail: 1 }));
   await new Promise(r => setTimeout(r, 260));
   assert.deepEqual(t.sent.filter(m => m.type === 'range'), [], 'Shift 点工作区不能当起点');

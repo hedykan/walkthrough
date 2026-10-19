@@ -47,7 +47,7 @@ export function systemPrompt(base: string | null, head: string): string {
     '- 不确定就直说不确定，不要编。',
     '',
     '## 引用代码',
-    '写成 Markdown 链接，路径相对仓库根，行号是上面那个提交里的行号，例如 [fusion.go:155-157](internal/service/point/engine/fusion.go#L155-L157)。对方点链接会跳到那几行，并把这句话挂在代码旁边当说明，所以带引用的那句要能单独读懂。',
+    '写成 Markdown 链接，路径相对仓库根，行号是上面那个提交里的行号，例如 [service.go:30-34](internal/payment/service.go#L30-L34)。对方点链接会跳到那几行，并把这句话挂在代码旁边当说明，所以带引用的那句要能单独读懂。',
     '',
     '提示词里带了之前的问答记录：对方说「前面的回复」「刚才问的」时，指的就是记录里的那几条，直接基于它们回答，不要说看不到。',
   ].join('\n');
@@ -243,7 +243,7 @@ export function resolveRefPath(token: string, paths: string[], prefer: string[] 
   return preferred.length === 1 ? preferred[0] : undefined;
 }
 
-/** 把回答正文里裸写的 fusion.go:162-166 变成 [fusion.go:162-166](路径#L162-L166)；已经是链接的不动 */
+/** 把回答正文里裸写的 service.go:30-34 变成 [service.go:30-34](路径#L30-L34)；已经是链接的不动 */
 export function linkifyRefs(text: string, paths: string[], prefer: string[] = []): string {
   if (!paths.length) return text;
   const LINK = /\[[^\]]+\]\([^)]+\)/g;

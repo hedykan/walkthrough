@@ -135,7 +135,7 @@ export async function remoteUrl(repoRoot: string): Promise<string | undefined> {
 export async function mainRepoRoot(dir: string): Promise<string | undefined> {
   const r = await run(dir, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
   if (r.code !== 0) return undefined;
-  const common = r.out.trim();                       // …/loloyal-services-be/.git
+  const common = r.out.trim();                       // …/api-service/.git
   return path.basename(common) === '.git' ? path.dirname(common) : common;
 }
 

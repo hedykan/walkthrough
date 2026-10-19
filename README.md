@@ -66,7 +66,7 @@ AI 让代码产出越来越快，人依然需要对最终结果负责。既然�
 **命令行**
 
 ```bash
-cursor --install-extension ~/Downloads/walkthrough-0.1.8.vsix
+cursor --install-extension ~/Downloads/walkthrough-0.1.9.vsix
 ```
 
 **界面**：`Cmd+Shift+P`（Windows / Linux 是 `Ctrl+Shift+P`）→ 输入 `Extensions: Install from VSIX...` → 选中 vsix 文件。
@@ -76,7 +76,7 @@ cursor --install-extension ~/Downloads/walkthrough-0.1.8.vsix
 **命令行**
 
 ```bash
-code --install-extension ~/Downloads/walkthrough-0.1.8.vsix
+code --install-extension ~/Downloads/walkthrough-0.1.9.vsix
 ```
 
 **界面**：左侧「扩展」视图 → 右上角 `…` → `从 VSIX 安装...`（Install from VSIX...）→ 选中 vsix 文件。
@@ -146,9 +146,9 @@ code --install-extension ~/Downloads/walkthrough-0.1.8.vsix
 {
   "walkthrough.dataDir": "~/walkthroughs",
   "walkthrough.repoRoots": {
-    "loloyal-services-be": "~/Develope/loloyal/loloyal-services-be"
+    "api-service": "~/code/api-service"
   },
-  "walkthrough.baseBranch": { "loloyal-services-be": "origin/main" }
+  "walkthrough.baseBranch": { "api-service": "origin/main" }
 }
 ```
 
@@ -159,13 +159,13 @@ code --install-extension ~/Downloads/walkthrough-0.1.8.vsix
 ### 1. 选范围：左侧「代码走读」视图
 
 ```
-仓库  [loloyal-services-be ▾]
-分支  [hotfix/metafield-partial…]  ⟳
-对比  [origin/main            ]  分叉 dc134417
+仓库  [api-service ▾]
+分支  [feature/payment-lock  ]  ⟳
+对比  [origin/main            ]  分叉 a81c02f0
 模型  [codex-gpt-6.1-sol ▾]  ＋
 提交（origin/main 分叉后 1 个）
- ● 98475290 fix(metafield): 已删除顾客不再…   📖
- ○ dc134417 ── origin/main 分叉点 ──
+ ● f2c3bced fix: 退款也先拿订单锁         📖
+ ○ a81c02f0 ── origin/main 分叉点 ──
 [ 生成走读 ]
 ```
 
@@ -229,7 +229,7 @@ printf '只回复 OK\n' | pi --print --no-session --model minimax/MiniMax-M2.7-h
 3. 插件会按真实的 git diff 校验每一步的位置和行号。不合格的交回 AI 修正，最多两轮。
 4. 完成后自动保存到走读目录并打开。
 
-规模和 PR #2606 差不多的分支，大约需要 5–10 分钟，随时可以取消。
+改了 10 个左右文件的分支，大约需要 5–10 分钟，随时可以取消。
 
 ### 3. 看走读：右侧面板
 
@@ -249,7 +249,7 @@ printf '只回复 OK\n' | pi --print --no-session --model minimax/MiniMax-M2.7-h
 - **面板里**：每一段最下面都有「问问题」，回答会显示在那一段里，并保存在走读文件旁边的 `.answers.json` 中，别人打开这份走读也能看到。
 - **编辑器里**：在快照代码上选中几行，点行号旁边的 `+`，就地提问。这种快速问答不保存，关掉就没了。
 - 回答里的代码引用可以点，点了会跳到那几行，并把这句话挂在代码旁边当说明。**按住 Alt 点**是就地预览，不跳走。
-- 跳过去之后，面板顶部会出现路径，比如 `第 5 步 › fusion.go:168 › sink.go:290`。点任意一段可以回去，`Alt+←` 回到上一处。
+- 跳过去之后，面板顶部会出现路径，比如 `第 5 步 › service.go:30 › lock.go:26`。点任意一段可以回去，`Alt+←` 回到上一处。
 
 ### 快捷键
 

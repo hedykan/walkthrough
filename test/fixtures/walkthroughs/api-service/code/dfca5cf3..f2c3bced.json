@@ -1,0 +1,407 @@
+{
+  "schemaVersion": "2",
+  "kind": "code",
+  "id": "dfca5cf3..f2c3bced",
+  "meta": {
+    "title": "订单支付加锁：防止重复扣款",
+    "summary": "支付和退款都先拿订单锁，再检查状态、扣款或退款；锁带超时，进程崩溃也不会把订单永远锁住。",
+    "repo": {
+      "name": "api-service"
+    },
+    "anchor": {
+      "base": "dfca5cf371dc28aae5fea7c40e2d525642575a6c",
+      "head": "f2c3bced95785959332a5237b105e3414c5b63b5",
+      "branch": "feature/payment-lock"
+    }
+  },
+  "items": [
+    {
+      "id": "i1",
+      "title": "同一订单不会被重复扣款",
+      "commits": [
+        "f4b49541"
+      ],
+      "why": "原来的支付流程是「先读订单、判断没付过、再扣款」。两个并发请求（比如用户连点两次「支付」）可能同时读到「未支付」，**都通过检查**，网关就扣了两次钱。不改的话，只要网络一卡、用户一着急，就会出现重复扣款和客诉。",
+      "idea": "**检查和扣款必须在同一把锁里。** 先按订单 ID 拿锁，拿到之后再读订单、判断状态、扣款、标记已支付；拿不到锁的请求直接返回「正在处理」。落库时再兜底检查一次。",
+      "scenario": "用户在支付页连点两次「支付」，两个请求几乎同时到达服务器，订单金额 99 元。",
+      "before": "两个请求都读到「未支付」，都去调了支付网关，用户被扣了 198 元，订单只记了一次已支付。",
+      "after": "第一个请求拿到订单锁，扣款 99 元并标记已支付；第二个请求拿不到锁，直接返回「订单正在处理」，用户只被扣一次。",
+      "side": "加锁之后，同一订单的支付请求是串行的，单笔订单的并发吞吐会下降；但同一订单本来就不该并发支付，不同订单之间互不影响。",
+      "chain": [
+        {
+          "id": "i1-n1",
+          "step": "接口入口",
+          "symbol": "PaymentHandler.Pay",
+          "anchor": {
+            "path": "internal/api/handler.go",
+            "start": 16,
+            "end": 18,
+            "line": 17
+          },
+          "text": "支付接口直接调用支付服务的 PayOrder，这一层没有改动。",
+          "diff": {
+            "added": 0,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": false
+        },
+        {
+          "id": "i1-n2",
+          "step": "组装服务",
+          "symbol": "NewService",
+          "anchor": {
+            "path": "internal/payment/service.go",
+            "start": 23,
+            "end": 25,
+            "line": 24
+          },
+          "text": "支付服务多了一个依赖：锁管理器。启动时把它注入进来，后面的 PayOrder 才能拿锁。",
+          "notes": [
+            {
+              "line": 24,
+              "text": "把锁管理器一起带进支付服务。"
+            }
+          ],
+          "diff": {
+            "added": 0,
+            "modified": 2,
+            "deleted": 0
+          },
+          "changed": true
+        },
+        {
+          "id": "i1-n3",
+          "step": "创建锁管理器",
+          "symbol": "NewLocker",
+          "anchor": {
+            "path": "internal/payment/lock.go",
+            "start": 20,
+            "end": 22,
+            "line": 21
+          },
+          "text": "新文件。锁管理器按订单 ID 记录每把锁什么时候过期。",
+          "notes": [
+            {
+              "line": 21,
+              "text": "每个订单一把锁，值是这把锁的过期时间。"
+            }
+          ],
+          "diff": {
+            "added": 3,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": true
+        },
+        {
+          "id": "i1-n4",
+          "step": "加锁",
+          "symbol": "Locker.Acquire",
+          "anchor": {
+            "path": "internal/payment/lock.go",
+            "start": 26,
+            "end": 35,
+            "line": 30
+          },
+          "text": "锁被别人占着、而且还没过期，就返回 ErrLocked；否则占上锁，并返回一个释放函数。",
+          "notes": [
+            {
+              "line": 30,
+              "text": "锁被占着且没过期，直接拒绝。"
+            }
+          ],
+          "diff": {
+            "added": 10,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": true
+        },
+        {
+          "id": "i1-n5",
+          "step": "先拿锁再检查",
+          "symbol": "Service.PayOrder",
+          "anchor": {
+            "path": "internal/payment/service.go",
+            "start": 29,
+            "end": 47,
+            "line": 30
+          },
+          "core": true,
+          "text": "**核心改动**：进函数第一件事就是拿订单锁，拿到之后才读订单、判断是否已支付、扣款。检查和扣款从此在同一把锁里。",
+          "was": "先读订单、判断未支付，然后直接扣款，中间没有任何保护。",
+          "notes": [
+            {
+              "line": 30,
+              "text": "新增：先按订单 ID 拿锁，拿不到就返回，后面的检查和扣款都在锁里。"
+            },
+            {
+              "line": 34,
+              "text": "函数返回时一定放锁，扣款失败也会释放。"
+            }
+          ],
+          "diff": {
+            "added": 6,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": true
+        },
+        {
+          "id": "i1-n6",
+          "step": "扣款",
+          "symbol": "Gateway.Charge",
+          "anchor": {
+            "path": "internal/payment/gateway.go",
+            "start": 11,
+            "end": 17,
+            "line": 15
+          },
+          "text": "调用支付网关扣款。**代码没改**，但现在只会在订单锁里被调用：同一订单同时只有一个请求能走到这里。",
+          "was": "同一订单可能被两个请求同时走到这里，扣两次款。",
+          "diff": {
+            "added": 0,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": false
+        },
+        {
+          "id": "i1-n7",
+          "step": "标记已支付",
+          "symbol": "Repository.MarkPaid",
+          "anchor": {
+            "path": "internal/payment/repository.go",
+            "start": 46,
+            "end": 58,
+            "line": 53
+          },
+          "text": "落库前再检查一次：订单已经是已支付，就返回 ErrAlreadyPaid，不重复标记。",
+          "notes": [
+            {
+              "line": 53,
+              "text": "兜底：就算有调用方绕过了锁，也不会把已支付的订单再标一次。"
+            }
+          ],
+          "diff": {
+            "added": 3,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": true
+        }
+      ]
+    },
+    {
+      "id": "i2",
+      "title": "锁会超时，也一定会释放",
+      "commits": [
+        "f4b49541"
+      ],
+      "why": "加了锁之后有一个新风险：进程在持有锁时崩溃，锁就永远不会被释放，这笔订单再也付不了款。",
+      "idea": "**锁带过期时间，释放写在 defer 里。** 正常流程靠 defer 释放；进程崩溃没来得及释放的锁，过了 30 秒自动失效，别的请求可以重新拿到。",
+      "scenario": "服务器在扣款过程中重启，订单锁没有释放。30 秒后用户重新点「支付」。",
+      "before": "没有锁，也就没有这个问题（但会重复扣款）。",
+      "after": "重启前占的锁 30 秒后过期，用户重新支付时能正常拿到锁，完成支付。",
+      "chain": [
+        {
+          "id": "i2-n1",
+          "step": "记下过期时间",
+          "symbol": "Locker.Acquire",
+          "anchor": {
+            "path": "internal/payment/lock.go",
+            "start": 26,
+            "end": 35,
+            "line": 33
+          },
+          "text": "占锁时记下「现在 + ttl」作为过期时间。",
+          "notes": [
+            {
+              "line": 33,
+              "text": "记下这把锁的过期时间。"
+            }
+          ],
+          "diff": {
+            "added": 10,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": true
+        },
+        {
+          "id": "i2-n2",
+          "step": "判断超时",
+          "symbol": "expired",
+          "anchor": {
+            "path": "internal/payment/lock.go",
+            "start": 45,
+            "end": 47,
+            "line": 46
+          },
+          "core": true,
+          "text": "当前时间不早于过期时间，就算超时；超时的锁可以被别人重新拿走。",
+          "notes": [
+            {
+              "line": 46,
+              "text": "到点即过期：崩溃时没放的锁，过了 ttl 也能被拿到。"
+            }
+          ],
+          "diff": {
+            "added": 3,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": true
+        },
+        {
+          "id": "i2-n3",
+          "step": "释放锁",
+          "symbol": "Locker.Release",
+          "anchor": {
+            "path": "internal/payment/lock.go",
+            "start": 38,
+            "end": 42,
+            "line": 41
+          },
+          "text": "删除这把锁的记录。PayOrder 用 defer 调它，扣款失败也会释放；重复释放是安全的。",
+          "notes": [
+            {
+              "line": 41,
+              "text": "删掉记录即释放，重复调用也没关系。"
+            }
+          ],
+          "diff": {
+            "added": 5,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": true
+        }
+      ]
+    },
+    {
+      "id": "i3",
+      "title": "退款也先拿锁",
+      "commits": [
+        "f2c3bced"
+      ],
+      "why": "退款流程和支付有同样的问题：用户连点两次「退款」，两个请求都读到「未退款」，就会重复退款。",
+      "idea": "**退款和支付共用同一把订单锁。** 退款先拿锁再检查状态；落库时同样兜底检查「是否已退款」。",
+      "scenario": "用户对一笔已支付的订单连点两次「申请退款」。",
+      "before": "两个请求都通过检查，订单被退款两次。",
+      "after": "第一个请求拿到锁完成退款；第二个请求拿不到锁，返回「订单正在处理」。",
+      "side": "支付和退款用同一把锁，所以同一订单不会同时在付款和退款，这正是我们想要的。",
+      "chain": [
+        {
+          "id": "i3-n1",
+          "step": "接口入口",
+          "symbol": "RefundHandler.Refund",
+          "anchor": {
+            "path": "internal/api/handler.go",
+            "start": 26,
+            "end": 28,
+            "line": 27
+          },
+          "text": "退款接口直接调用退款服务，这一层没有改动。",
+          "diff": {
+            "added": 0,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": false
+        },
+        {
+          "id": "i3-n2",
+          "step": "组装退款服务",
+          "symbol": "NewService",
+          "anchor": {
+            "path": "internal/refund/service.go",
+            "start": 16,
+            "end": 18,
+            "line": 16
+          },
+          "text": "退款服务也注入锁管理器，和支付服务用的是同一个实例。",
+          "notes": [
+            {
+              "line": 16,
+              "text": "多接收一个锁管理器参数。"
+            }
+          ],
+          "diff": {
+            "added": 0,
+            "modified": 2,
+            "deleted": 0
+          },
+          "changed": true
+        },
+        {
+          "id": "i3-n3",
+          "step": "先拿锁再退款",
+          "symbol": "Service.RefundOrder",
+          "anchor": {
+            "path": "internal/refund/service.go",
+            "start": 21,
+            "end": 36,
+            "line": 22
+          },
+          "core": true,
+          "text": "**核心改动**：和支付一样，先拿订单锁，再读订单、判断能不能退。",
+          "was": "直接读订单判断，没有加锁。",
+          "notes": [
+            {
+              "line": 22,
+              "text": "和支付共用订单锁，超时时间也一样。"
+            },
+            {
+              "line": 26,
+              "text": "函数返回时放锁。"
+            }
+          ],
+          "diff": {
+            "added": 6,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": true
+        },
+        {
+          "id": "i3-n4",
+          "step": "防重复退款",
+          "symbol": "Repository.MarkRefunded",
+          "anchor": {
+            "path": "internal/payment/repository.go",
+            "start": 61,
+            "end": 73,
+            "line": 68
+          },
+          "text": "落库前再检查一次：已经退过款就返回 ErrAlreadyRefunded。",
+          "notes": [
+            {
+              "line": 68,
+              "text": "兜底：已退款的订单不会被再标一次。"
+            }
+          ],
+          "diff": {
+            "added": 3,
+            "modified": 0,
+            "deleted": 0
+          },
+          "changed": true
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "f1",
+      "source": "reviewer",
+      "claim": "退款和支付共用同一把锁，会不会让同一订单的支付和退款互相卡住？",
+      "verdict": "confirmed",
+      "evidence": "会互相等待，但这是期望的行为：同一订单不应同时付款和退款。锁有 30 秒超时，不会永久卡住。",
+      "items": [
+        "i3"
+      ]
+    }
+  ]
+}

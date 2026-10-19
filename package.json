@@ -2,7 +2,7 @@
   "name": "walkthrough",
   "displayName": "代码走读",
   "description": "带着人一步步审代码改动：选分支生成走读（AI），按调用链条逐步看只读快照与 diff，并能就地提问",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "publisher": "hedykan",
   "private": true,
   "license": "UNLICENSED",
@@ -211,7 +211,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "仓库名 → 本地仓库路径，例如 { \"loloyal-services-be\": \"~/Develope/loloyal/loloyal-services-be\" }。不配时先在工作区里按目录名找，找不到再让你选"
+          "description": "仓库名 → 本地仓库路径，例如 { \"api-service\": \"~/code/api-service\" }。不配时先在工作区里按目录名找，找不到再让你选"
         },
         "walkthrough.ask.command": {
           "type": "array",
@@ -262,7 +262,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "markdownDescription": "每个仓库固定用哪个分支当对比基准，如 `{\"loloyal-services-be\": \"main\"}`。不填时按 main → master 找。"
+          "markdownDescription": "每个仓库固定用哪个分支当对比基准，如 `{\"api-service\": \"main\"}`。不填时按 main → master 找。"
         },
         "walkthrough.ask.model": {
           "type": "string",

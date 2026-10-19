@@ -5,11 +5,10 @@ import * as os from 'os';
 import { Finalizer } from '../src/finalize';
 import { loadWalkthrough } from '../src/model';
 
-const REPO = path.join(os.homedir(), 'Develope/loloyal/loloyal-services-be');
-const SAMPLE = path.join(os.homedir(), 'Develope/loloyal/loloyal-myself/walkthrough/loloyal-services-be/code/72872858..b442c435.json');
+import { REPO, SAMPLE } from './fixtures';
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
 
-test('TS 版定稿：#2606 五项零报错，回填的改动统计与 Python 版逐节点一致', async () => {
+test('TS 版定稿：样例走读三项零报错，回填的改动统计与样例逐节点一致', async () => {
   const w = loadWalkthrough(SAMPLE);
   const f = new Finalizer(REPO, w.meta.anchor.base, w.meta.anchor.head);
   for (const orig of w.items) {
@@ -25,14 +24,14 @@ test('TS 版定稿：拦住锚点漂移、说明挂错行、越界、绝对路�
   const w = loadWalkthrough(SAMPLE);
   const f = new Finalizer(REPO, w.meta.anchor.base, w.meta.anchor.head);
   const it = clone(w.items[0]);
-  it.chain[4].notes![0].line = 42;                      // 没改的行
+  it.chain[4].notes![0].line = 40;                      // 没改的行
   it.chain[4].symbol = 'notThisFunc';                   // 函数名对不上
   it.chain[0].anchor.end = 99999;                       // 越界
   it.chain[1].anchor.path = '/Users/x/a.go';            // 绝对路径
   it.chain[2].anchor.path = 'no/such/file.go';
   (it as any).idea = '';
   const { errors } = await f.check(it);
-  for (const want of ['说明行 42 不是改动行', '所在函数不是 notThisFunc', '范围越界', '必须是仓库相对路径', '文件在 head 不存在', 'i1.idea 为空'])
+  for (const want of ['说明行 40 不是改动行', '所在函数不是 notThisFunc', '范围越界', '必须是仓库相对路径', '文件在 head 不存在', 'i1.idea 为空'])
     assert.ok(errors.some(e => e.includes(want)), `没拦住：${want}\n${errors.join('\n')}`);
 });
 

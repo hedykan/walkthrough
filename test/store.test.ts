@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { forBranch, listWalkthroughs } from '../src/store';
+import { BASE8, BRANCH, HEAD8, WALKTHROUGHS } from './fixtures';
 
 const W = (base: string, head: string, branch: string, at: string | undefined, items = 2, title = 't') =>
   JSON.stringify({ schemaVersion: '2', meta: { title, anchor: { base, head, branch }, ...(at ? { generatedBy: { at } } : {}) }, items: Array(items).fill({}) });
@@ -30,7 +31,7 @@ test('属于当前分支：分支名一致（忽略 origin/），或终点在提
   assert.deepEqual(forBranch(all, 'feat/z', []).map(x => x.key), []);
 });
 
-test('真实走读目录：feat/v14.9-mul-pao 能找到 #2606 那份', () => {
-  const all = listWalkthroughs(path.join(os.homedir(), 'Develope/loloyal/loloyal-myself/walkthrough/loloyal-services-be'));
-  assert.ok(forBranch(all, 'feat/v14.9-mul-pao', []).some(x => x.key === '72872858..b442c435'));
+test('样例走读目录：feature/payment-lock 能找到那份走读', () => {
+  const all = listWalkthroughs(WALKTHROUGHS);
+  assert.ok(forBranch(all, BRANCH, []).some(x => x.key === `${BASE8}..${HEAD8}`));
 });

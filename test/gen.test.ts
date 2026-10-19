@@ -7,8 +7,7 @@ import { assemble, extractJson, generateItem, generatePlan, newSignal, pool, wal
 import { logRange } from '../src/git';
 import { loadWalkthrough } from '../src/model';
 
-const REPO = path.join(os.homedir(), 'Develope/loloyal/loloyal-services-be');
-const SAMPLE = path.join(os.homedir(), 'Develope/loloyal/loloyal-myself/walkthrough/loloyal-services-be/code/72872858..b442c435.json');
+import { BASE8, HEAD8, LOCK8, REPO, REPO_NAME, SAMPLE } from './fixtures';
 
 test('从 AI 输出里取 JSON：优先最后一个代码块；没有代码块就取花括号；坏的报错', () => {
   assert.deepEqual(extractJson('先说两句\n```json\n{"a":1}\n```\n再来\n```json\n{"a":2}\n```'), { a: 2 });
@@ -42,7 +41,7 @@ function fakeClaude(dir: string, script: string): string[] {
 async function input() {
   const w = loadWalkthrough(SAMPLE);
   const { base, head } = w.meta.anchor;
-  return { root: REPO, repoName: 'loloyal-services-be', branch: 'feat/x', base: base!, head, commits: await logRange(REPO, base!, head), stat: '' };
+  return { root: REPO, repoName: REPO_NAME, branch: 'feat/x', base: base!, head, commits: await logRange(REPO, base!, head), stat: '' };
 }
 
 test('逐项生成：第一次锚点写错 → 带着报错交回修正 → 第二轮通过，并回填改动统计', async () => {
@@ -61,7 +60,7 @@ test('逐项生成：第一次锚点写错 → 带着报错交回修正 → 第�
   assert.equal(prompts.length, 2, '应该调了两次：生成 + 修正');
   assert.ok(prompts[1].includes('所在函数不是 wrongFunc'), '修正提示词要带上校验报错原文');
   assert.ok(notes.some(n => n.includes('交回 AI 修正')));
-  assert.equal(item.chain[4].symbol, 'resolveOrderShippingSelection');
+  assert.equal(item.chain[4].symbol, 'Service.PayOrder');
   assert.ok(item.chain.every(n => n.diff && typeof n.changed === 'boolean'), '定稿后要有回填');
 });
 
@@ -82,7 +81,7 @@ test('列项：重新编号 i1..iN；提示词带上提交和改动统计', asyn
   const plan = await generatePlan({ command: cmd, format: 'claude-stream-json', spec: 'S' }, g, () => {}, newSignal());
   assert.deepEqual(plan.map(p => [p.id, p.title]), [['i1', '甲'], ['i2', '乙']]);
   const p = JSON.parse(fs.readFileSync(path.join(dir, 'log'), 'utf8').trim());
-  assert.ok(p.includes('be57717a') && p.includes('a.go | 3 ++-') && p.includes('阶段一'));
+  assert.ok(p.includes(LOCK8.slice(0, 7)) && p.includes('a.go | 3 ++-') && p.includes('阶段一'));
 });
 
 test('拼装：schema v2、文件名是 base8..head8', async () => {
@@ -90,5 +89,5 @@ test('拼装：schema v2、文件名是 base8..head8', async () => {
   const w = assemble(g, loadWalkthrough(SAMPLE).items.slice(0, 2), 'claude');
   assert.equal(w.schemaVersion, '2');
   assert.equal(w.meta.anchor.base, g.base);
-  assert.equal(path.basename(walkthroughFile('/d', g.repoName, g.base, g.head)), '72872858..b442c435.json');
+  assert.equal(path.basename(walkthroughFile('/d', g.repoName, g.base, g.head)), `${BASE8}..${HEAD8}.json`);
 });

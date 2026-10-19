@@ -7,7 +7,7 @@ import { JSDOM } from 'jsdom';
 import { flatten, loadWalkthrough } from '../src/model';
 import { Focus, navigate, renderItem } from '../src/panel';
 
-const SAMPLE = path.join(os.homedir(), 'Develope/loloyal/loloyal-myself/walkthrough/loloyal-services-be/code/72872858..b442c435.json');
+import { SAMPLE } from './fixtures';
 
 function boot(flat: number, focus: Focus) {
   const w = loadWalkthrough(SAMPLE);
@@ -31,7 +31,7 @@ function boot(flat: number, focus: Focus) {
 test('不再变暗：任何时候都没有 .dim；顶部写当前位置；最开头时上一步不可点', () => {
   const t = boot(0, 'why');
   assert.equal(t.d.querySelectorAll('.dim').length, 0);
-  assert.equal(t.d.getElementById('pos')!.textContent, '第 1/5 项 · 修改原因');
+  assert.equal(t.d.getElementById('pos')!.textContent, '第 1/3 项 · 修改原因');
   assert.equal((t.d.getElementById('prev') as any).disabled, true);
 });
 
@@ -40,14 +40,14 @@ test('切到链条：位置文字跟着变，依然不变暗', async () => {
   t.w.postMessage({ type: 'focus', f: 'node' }, '*');
   await new Promise(r => setTimeout(r, 0));
   assert.equal(t.d.querySelectorAll('.dim').length, 0);
-  assert.equal(t.d.getElementById('pos')!.textContent, '第 1/5 项 · 第 3/7 步');
+  assert.equal(t.d.getElementById('pos')!.textContent, '第 1/3 项 · 第 3/7 步');
   assert.equal((t.d.getElementById('prev') as any).disabled, false);
 });
 
 test('点一段说明：位置切过去并通知会话；点当前步：位置回到链条；再点同一处不重复通知', () => {
   const t = boot(4, 'node');
   (t.d.querySelector('[data-f="idea"] p') as any).click();
-  assert.equal(t.d.getElementById('pos')!.textContent, '第 1/5 项 · 核心思想');
+  assert.equal(t.d.getElementById('pos')!.textContent, '第 1/3 项 · 核心思想');
   (t.d.querySelector('[data-f="idea"] p') as any).click();
   assert.deepEqual(t.sent, [{ type: 'focus', f: 'idea' }]);
   (t.d.querySelector('li.node.current .text') as any).click();

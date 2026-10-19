@@ -184,7 +184,7 @@ function walkthroughPanel() {
 
   const commit = rect(x, y + 0.5, w, 18, 2.2);
   out.push(slab(commit, TOP + 1.4, 1.15, "lo", { bevel: 0.3 }));
-  out.push(T(x + 5, y + 7.3, TOP + 2.65, "● 98475290", { size: 3.35, tone: "hi" }));
+  out.push(T(x + 5, y + 7.3, TOP + 2.65, "● 5d3a7e19", { size: 3.35, tone: "hi" }));
   out.push(T(x + 5, y + 14.2, TOP + 2.65, "fix deleted customer", { size: 3.15, tone: "mid" }));
   y += 21;
 

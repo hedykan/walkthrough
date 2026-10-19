@@ -7,7 +7,7 @@ import * as vm from 'vm';
 import { flatten, loadWalkthrough } from '../src/model';
 import { renderItem } from '../src/panel';
 
-const SAMPLE = path.join(os.homedir(), 'Develope/loloyal/loloyal-myself/walkthrough/loloyal-services-be/code/72872858..b442c435.json');
+import { SAMPLE } from './fixtures';
 
 function boot(at = 0) {
   const w = loadWalkthrough(SAMPLE);
@@ -34,10 +34,10 @@ function boot(at = 0) {
 
 test('点回答里的代码引用：发 ref，带上所在那句话', () => {
   const { sent, click } = boot();
-  const sentence = { innerText: '  固定积分规则直接返回配置的分值（fusion.go:168）。 ' };
-  const link = { innerText: ' fusion.go:168 ', dataset: { link: 'internal/service/point/engine/fusion.go#L168' }, closest: (s: string) => s === '.a' ? {} : s === 'li, p' ? sentence : null };
+  const sentence = { innerText: '  金额不大于 0 时手续费为 0（fee.go:5）。 ' };
+  const link = { innerText: ' fee.go:5 ', dataset: { link: 'internal/payment/engine/fee.go#L5' }, closest: (s: string) => s === '.a' ? {} : s === 'li, p' ? sentence : null };
   const prevented = click({ a: link, '.qa': {}, 'li.node': { classList: { contains: () => false }, dataset: { flat: '3' } } });
-  assert.deepEqual(sent, [{ type: 'ref', target: 'internal/service/point/engine/fusion.go#L168', why: '固定积分规则直接返回配置的分值（fusion.go:168）。', label: 'fusion.go:168', peek: false }]);
+  assert.deepEqual(sent, [{ type: 'ref', target: 'internal/payment/engine/fee.go#L5', why: '金额不大于 0 时手续费为 0（fee.go:5）。', label: 'fee.go:5', peek: false }]);
   assert.ok(prevented);
   click({ $alt: true, a: link, '.qa': {} });
   assert.equal(sent[1].peek, true, '按住 Alt 点 = 就地预览');
@@ -51,8 +51,8 @@ test('点面包屑：发 trail，带上第几段', () => {
 
 test('点走读正文里的链接：同样走 ref（记入跳转路径），没有说明句', () => {
   const { sent, click } = boot();
-  click({ a: { innerText: 'pipeline.go:541', dataset: { link: 'a.go#L1' }, closest: () => null } });
-  assert.deepEqual(sent, [{ type: 'ref', target: 'a.go#L1', why: '', label: 'pipeline.go:541', peek: false }]);
+  click({ a: { innerText: 'gateway.go:15', dataset: { link: 'a.go#L1' }, closest: () => null } });
+  assert.deepEqual(sent, [{ type: 'ref', target: 'a.go#L1', why: '', label: 'gateway.go:15', peek: false }]);
 });
 
 test('在问答区里点别的（展开、打字）：不跳步；点链条一步的其他地方：跳步', () => {

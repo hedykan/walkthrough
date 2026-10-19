@@ -11,8 +11,8 @@ test('代码里的 ** 和 [] 不被当语法', () => {
 });
 
 test('链接带 data-link，粗体生效', () => {
-  assert.equal(renderInline('**看** [fusion.go:50](internal/x/fusion.go#L50)'),
-    '<strong>看</strong> <a href="#" class="ln" data-link="internal/x/fusion.go#L50">fusion.go:50</a>');
+  assert.equal(renderInline('**看** [fee.go:50](internal/x/fee.go#L50)'),
+    '<strong>看</strong> <a href="#" class="ln" data-link="internal/x/fee.go#L50">fee.go:50</a>');
 });
 
 test('链接目标里的引号无法逃出属性', () => {

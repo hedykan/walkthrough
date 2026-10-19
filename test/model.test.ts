@@ -5,20 +5,20 @@ import * as os from 'os';
 import * as fs from 'fs';
 import { flatten, findingsForItem, loadWalkthrough, parseLinkTarget } from '../src/model';
 
-const SAMPLE = path.join(os.homedir(), 'Develope/loloyal/loloyal-myself/walkthrough/loloyal-services-be/code/72872858..b442c435.json');
+import { SAMPLE } from './fixtures';
 
 test('真实走读 JSON：5 项、32 步，摊平后跨项连续', () => {
   const w = loadWalkthrough(SAMPLE);
   const refs = flatten(w);
-  assert.equal(w.items.length, 5);
-  assert.equal(refs.length, 32);
+  assert.equal(w.items.length, 3);
+  assert.equal(refs.length, 14);
   assert.deepEqual(refs.slice(6, 9).map(r => [r.itemIndex, r.nodeIndex]), [[0, 6], [1, 0], [1, 1]]);
   for (const r of refs) {
     assert.ok(!r.node.anchor.path.startsWith('/'), `${r.node.id} 用了绝对路径`);
     assert.ok(r.node.anchor.start <= r.node.anchor.line && r.node.anchor.line <= r.node.anchor.end, `${r.node.id} 焦点行不在范围内`);
   }
   for (const it of w.items) for (const k of ['why', 'idea', 'scenario', 'before', 'after'] as const) assert.ok(it[k], `${it.id}.${k} 为空`);
-  assert.ok(findingsForItem(w, 'i5').length > 0);
+  assert.ok(findingsForItem(w, 'i3').length > 0);
 });
 
 test('只认 schema v2', () => {

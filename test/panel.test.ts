@@ -5,7 +5,7 @@ import * as os from 'os';
 import { flatten, loadWalkthrough } from '../src/model';
 import { renderItem } from '../src/panel';
 
-const SAMPLE = path.join(os.homedir(), 'Develope/loloyal/loloyal-myself/walkthrough/loloyal-services-be/code/72872858..b442c435.json');
+import { SAMPLE } from './fixtures';
 
 test('32 个节点逐个渲染：结构齐全、当前步唯一、内嵌脚本可解析', () => {
   const w = loadWalkthrough(SAMPLE);
@@ -29,14 +29,14 @@ test('本步改动里，修改说明紧跟在对应改动行后面', () => {
   const refs = flatten(w);
   const ref = refs.find(r => r.node.id === 'i1-n5')!;
   const html = renderItem(w, refs, ref, [
-    { kind: 'added', line: 40, text: 'includesShipping bool,' },
-    { kind: 'added', line: 50, text: 'if !includesShipping {' },
-    { kind: 'added', line: 51, text: 'return 0' },
+    { kind: 'added', line: 30, text: 'release, err := s.locks.Acquire(ctx, orderID, LockTTL)' },
+    { kind: 'added', line: 34, text: 'defer release()' },
+    { kind: 'added', line: 36, text: 'order, err := s.repo.LoadOrder(ctx, orderID)' },
   ], 'N', '');
   const block = html.slice(html.indexOf('<div class="diff">'));
   const at = (t: string) => { const i = block.indexOf(t); assert.ok(i >= 0, `diff 区块里找不到：${t}`); return i; };
-  assert.ok(at('includesShipping bool,') < at('新增参数') && at('新增参数') < at('if !includesShipping {'), '说明应在 L40 与 L50 之间');
-  assert.ok(at('if !includesShipping {') < at('不挂任何规则') && at('不挂任何规则') < at('>return 0<'), '说明应在 L50 与 L51 之间');
+  assert.ok(at('release, err := s.locks.Acquire') < at('先按订单 ID 拿锁') && at('先按订单 ID 拿锁') < at('defer release()'), '说明应在 L30 与 L34 之间');
+  assert.ok(at('defer release()') < at('扣款失败也会释放') && at('扣款失败也会释放') < at('>order, err := s.repo.LoadOrder(ctx, orderID)<'), '说明应在 L34 与 L36 之间');
 });
 
 test('配色只有三种：样式里不许出现写死的颜色值', () => {
@@ -53,9 +53,9 @@ test('本步改动默认收起：摘要行写改动统计和说明条数，点�
   const refs = flatten(w);
   const ref = refs.find(r => r.node.id === 'i1-n5')!;
   const html = renderItem(w, refs, ref, [
-    { kind: 'added', line: 40, text: 'includesShipping bool,' },
-    { kind: 'modified', line: 50, text: 'if !includesShipping {', old: 'x' },
-    { kind: 'deleted', after: 51, text: ['a', 'b'] },
+    { kind: 'added', line: 30, text: 'release, err := s.locks.Acquire(ctx, orderID, LockTTL)' },
+    { kind: 'modified', line: 34, text: 'defer release()', old: 'x' },
+    { kind: 'deleted', after: 35, text: ['a', 'b'] },
   ], 'N', '');
   const m = html.match(/<details class="dwrap"( open)?><summary>本步改动 <span class="dstat">([^<]*)<\/span><\/summary><div class="diff">/);
   assert.ok(m, '改动区要包在折叠块里');
